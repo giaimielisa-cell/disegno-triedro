@@ -1,0 +1,282 @@
+/* Aspetto sobrio da tavola di disegno tecnico: fondo chiaro, linee nere,
+   accenti blu. Comandi grandi, leggibili anche proiettati alla LIM. */
+
+:root {
+  --carta: #f6f5f1;
+  --carta-chiara: #fffefb;
+  --inchiostro: #14161a;
+  --inchiostro-tenue: #5a6068;
+  --blu: #14457c;
+  --blu-chiaro: #dbe6f2;
+  --bordo: #c9c6bd;
+  --richiamo: #8a9bb0;
+  --evidenza: #b4451f;
+  --raggio: 10px;
+  --spessore-grosso: 2px;
+  --spessore-fine: 1px;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: var(--carta);
+  color: var(--inchiostro);
+  font-family: "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+  font-size: 17px;
+  line-height: 1.45;
+  overscroll-behavior: none;
+}
+
+body { display: flex; flex-direction: column; }
+
+/* --- Barra superiore --- */
+
+.barra {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 20px;
+  background: var(--carta-chiara);
+  border-bottom: 1px solid var(--bordo);
+  flex-wrap: wrap;
+}
+
+.marchio { display: flex; align-items: center; gap: 12px; }
+.logo svg { width: 34px; height: 34px; fill: none; stroke: var(--blu); stroke-width: 2; }
+.barra h1 { font-size: 1.5rem; margin: 0; letter-spacing: 0.06em; text-transform: uppercase; }
+.sottotitolo { margin: 0; font-size: 0.82rem; color: var(--inchiostro-tenue); }
+
+.menu-principale { display: flex; gap: 8px; }
+.menu-principale button {
+  font: inherit;
+  padding: 10px 20px;
+  border: 1px solid var(--bordo);
+  background: var(--carta);
+  border-radius: var(--raggio);
+  cursor: pointer;
+  min-height: 46px;
+}
+.menu-principale button.attivo { background: var(--blu); color: #fff; border-color: var(--blu); }
+
+/* --- Comandi principali --- */
+
+main { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+section { flex: 1; display: flex; flex-direction: column; min-height: 0; padding: 14px 20px 18px; gap: 12px; }
+
+.riga-comandi { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+
+.campo { display: flex; align-items: center; gap: 10px; font-weight: 600; }
+.campo select {
+  font: inherit;
+  padding: 10px 12px;
+  min-height: 46px;
+  border: 1px solid var(--bordo);
+  border-radius: var(--raggio);
+  background: var(--carta-chiara);
+  min-width: 260px;
+}
+
+.interruttore { display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 6px 0; }
+.interruttore input { width: 22px; height: 22px; accent-color: var(--blu); }
+
+.schede { display: flex; gap: 6px; flex-wrap: wrap; border-bottom: 1px solid var(--bordo); }
+.schede button {
+  font: inherit;
+  padding: 11px 18px;
+  min-height: 46px;
+  border: 1px solid var(--bordo);
+  border-bottom: none;
+  border-radius: var(--raggio) var(--raggio) 0 0;
+  background: var(--carta);
+  cursor: pointer;
+  margin-bottom: -1px;
+}
+.schede button.attivo { background: var(--carta-chiara); font-weight: 700; border-bottom: 1px solid var(--carta-chiara); }
+.schede button[disabled] { opacity: 0.45; cursor: not-allowed; }
+
+/* --- Selettore della vista singola (schermi stretti) --- */
+
+.selettore-vista { display: flex; align-items: center; gap: 12px; }
+.scelta-viste { display: flex; gap: 6px; flex: 1; }
+.scelta-viste button {
+  font: inherit; font-size: 0.92rem; flex: 1;
+  padding: 10px 6px; min-height: 46px;
+  border: 1px solid var(--bordo); background: var(--carta);
+  border-radius: var(--raggio); cursor: pointer;
+}
+.scelta-viste button.attivo { background: var(--blu); color: #fff; border-color: var(--blu); }
+
+.schema-disposizione { width: 68px; height: 50px; flex: none; }
+.schema-disposizione rect { fill: none; stroke: var(--inchiostro-tenue); stroke-width: 2; }
+.schema-disposizione rect.attiva { fill: var(--blu-chiaro); stroke: var(--blu); }
+.schema-disposizione line.schema-richiamo { stroke: var(--richiamo); stroke-width: 1.5; stroke-dasharray: 3 3; }
+.schema-disposizione text { font-size: 17px; fill: var(--inchiostro-tenue); }
+
+/* --- Area di disegno --- */
+
+.area-lavoro { flex: 1; display: flex; gap: 16px; min-height: 0; }
+
+.tele { flex: 1; display: flex; gap: 14px; min-width: 0; }
+
+.tela {
+  flex: 1;
+  margin: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--carta-chiara);
+  border: 1px solid var(--bordo);
+  border-radius: var(--raggio);
+  overflow: hidden;
+}
+.tela.nascosta { display: none; }
+.tela figcaption {
+  padding: 8px 14px;
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--inchiostro-tenue);
+  border-bottom: 1px solid var(--bordo);
+  background: var(--carta);
+}
+.tela svg { flex: 1; width: 100%; min-height: 0; touch-action: none; display: block; }
+.tela.trascinabile svg { cursor: grab; }
+.tela.in-trascinamento svg { cursor: grabbing; }
+
+/* --- Convenzioni grafiche del disegno --- */
+
+.spigolo-visibile {
+  stroke: var(--inchiostro);
+  stroke-width: var(--spessore-grosso);
+  vector-effect: non-scaling-stroke;
+  stroke-linecap: round;
+  fill: none;
+}
+.spigolo-nascosto {
+  stroke: var(--inchiostro);
+  stroke-width: var(--spessore-fine);
+  stroke-dasharray: 7 4;
+  vector-effect: non-scaling-stroke;
+  fill: none;
+}
+.richiamo {
+  stroke: var(--richiamo);
+  stroke-width: 1;
+  stroke-dasharray: 6 4;
+  vector-effect: non-scaling-stroke;
+}
+.ribaltamento {
+  stroke: var(--evidenza);
+  stroke-width: 1.2;
+  stroke-dasharray: 9 3 2 3;
+  vector-effect: non-scaling-stroke;
+}
+.asse-riferimento {
+  stroke: var(--blu);
+  stroke-width: 1.2;
+  stroke-dasharray: 10 3 2 3;
+  vector-effect: non-scaling-stroke;
+}
+.griglia { stroke: #dedbd2; stroke-width: 1; vector-effect: non-scaling-stroke; }
+.piano-proiezione { fill: var(--blu-chiaro); fill-opacity: 0.35; stroke: var(--blu); stroke-width: 1; stroke-dasharray: 4 3; vector-effect: non-scaling-stroke; }
+.faccia { stroke: none; }
+
+text { font-family: "Segoe UI", system-ui, sans-serif; }
+.titolo-vista { fill: var(--inchiostro-tenue); font-weight: 700; }
+.etichetta-vertice { fill: var(--blu); font-weight: 700; }
+.etichetta-asse { fill: var(--blu); font-style: italic; }
+.etichetta-piano { fill: var(--blu); }
+.nota-disegno { fill: var(--evidenza); }
+
+/* --- Pannello dei comandi --- */
+
+.pannello {
+  width: 310px;
+  flex: none;
+  overflow-y: auto;
+  background: var(--carta-chiara);
+  border: 1px solid var(--bordo);
+  border-radius: var(--raggio);
+  padding: 4px 16px 16px;
+}
+.pannello-testata { display: flex; align-items: center; justify-content: space-between; }
+.pannello h2 { font-size: 1rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--inchiostro-tenue); }
+.pannello fieldset {
+  border: none;
+  border-top: 1px solid var(--bordo);
+  padding: 10px 0 4px;
+  margin: 6px 0 0;
+}
+.pannello legend { font-weight: 700; font-size: 0.9rem; padding: 0 6px 0 0; }
+.pannello fieldset[hidden] { display: none; }
+
+.pulsanti-tipo { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 10px; }
+.pulsanti-tipo button {
+  font: inherit;
+  font-size: 0.92rem;
+  padding: 9px 12px;
+  min-height: 44px;
+  border: 1px solid var(--bordo);
+  background: var(--carta);
+  border-radius: var(--raggio);
+  cursor: pointer;
+  flex: 1 1 44%;
+}
+.pulsanti-tipo button.attivo { background: var(--blu); color: #fff; border-color: var(--blu); }
+
+.lettura {
+  font-family: "Consolas", "SF Mono", monospace;
+  font-size: 0.88rem;
+  background: var(--carta);
+  border: 1px solid var(--bordo);
+  border-radius: var(--raggio);
+  padding: 10px 12px;
+}
+.lettura div { display: flex; justify-content: space-between; gap: 10px; }
+.nota { font-size: 0.84rem; color: var(--inchiostro-tenue); margin: 8px 0 4px; }
+
+.alternanza { display: flex; gap: 6px; margin-top: 8px; }
+.alternanza button {
+  font: inherit; flex: 1; padding: 10px; min-height: 44px;
+  border: 1px solid var(--bordo); background: var(--carta);
+  border-radius: var(--raggio); cursor: pointer;
+}
+.alternanza button.attivo { background: var(--blu); color: #fff; border-color: var(--blu); }
+
+#apri-pannello, #chiudi-pannello {
+  font: inherit; padding: 10px 16px; min-height: 46px;
+  border: 1px solid var(--bordo); background: var(--carta);
+  border-radius: var(--raggio); cursor: pointer;
+}
+#chiudi-pannello { font-size: 1.4rem; line-height: 1; padding: 4px 12px; min-height: 40px; }
+.solo-stretto { display: none; }
+
+.in-arrivo { margin: auto; text-align: center; color: var(--inchiostro-tenue); }
+
+/* --- Schermi stretti: l'impianto si riorganizza --- */
+
+@media (max-width: 860px) {
+  body { font-size: 16px; }
+  section { padding: 10px 12px 14px; }
+  .solo-stretto { display: block; }
+  .tele { flex-direction: column; }
+  .pannello {
+    position: fixed;
+    inset: 0 0 0 auto;
+    width: min(88vw, 340px);
+    z-index: 20;
+    border-radius: 0;
+    box-shadow: -8px 0 24px rgba(0, 0, 0, 0.18);
+    transform: translateX(100%);
+    transition: transform 0.2s ease;
+  }
+  .pannello.aperto { transform: none; }
+  .campo select { min-width: 0; flex: 1; }
+  .campo { flex: 1 1 100%; }
+  .schede { overflow-x: auto; flex-wrap: nowrap; }
+  .schede button { white-space: nowrap; }
+}

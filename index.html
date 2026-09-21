@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Triedro — metodi di rappresentazione</title>
+<link rel="stylesheet" href="css/stile.css">
+</head>
+<body>
+
+<header class="barra">
+  <div class="marchio">
+    <span class="logo" aria-hidden="true">
+      <svg viewBox="0 0 32 32"><path d="M4 26 L16 6 L28 26 Z"/><path d="M16 6 L16 26"/><path d="M4 26 L28 26"/></svg>
+    </span>
+    <div>
+      <h1>Triedro</h1>
+      <p class="sottotitolo">Un solido, più modi di rappresentarlo</p>
+    </div>
+  </div>
+  <nav class="menu-principale">
+    <button type="button" class="attivo" data-sezione="esploratore">Esploratore</button>
+    <button type="button" data-sezione="palestra">Palestra</button>
+  </nav>
+</header>
+
+<main>
+  <section id="sezione-esploratore">
+
+    <div class="riga-comandi">
+      <label class="campo">
+        <span>Solido</span>
+        <select id="scelta-solido"></select>
+      </label>
+      <label class="interruttore">
+        <input type="checkbox" id="solido-inclinato">
+        <span>Base inclinata</span>
+      </label>
+      <button type="button" id="apri-pannello" class="solo-stretto">Comandi</button>
+    </div>
+
+    <div class="schede" role="tablist">
+      <button type="button" role="tab" class="attivo" data-scheda="ortogonali">Proiezioni ortogonali</button>
+      <button type="button" role="tab" data-scheda="assonometria">Assonometria</button>
+      <button type="button" role="tab" data-scheda="prospettiva" disabled title="In arrivo nella prossima fase">Prospettiva</button>
+      <button type="button" role="tab" data-scheda="sezioni" disabled title="In arrivo nella prossima fase">Sezioni</button>
+    </div>
+
+    <div class="selettore-vista" id="selettore-vista" hidden>
+      <div class="scelta-viste">
+        <button type="button" class="attivo" data-vista="prospetto">Prospetto</button>
+        <button type="button" data-vista="pianta">Pianta</button>
+        <button type="button" data-vista="laterale">Vista laterale</button>
+      </div>
+      <svg class="schema-disposizione" id="schema-disposizione" viewBox="0 0 132 96" aria-label="Disposizione delle viste">
+        <line x1="10" y1="42" x2="10" y2="56" class="schema-richiamo"/>
+        <line x1="52" y1="42" x2="52" y2="56" class="schema-richiamo"/>
+        <line x1="60" y1="10" x2="74" y2="10" class="schema-richiamo"/>
+        <line x1="60" y1="40" x2="74" y2="40" class="schema-richiamo"/>
+        <rect x="10" y="8" width="42" height="34" data-riquadro="prospetto"/>
+        <rect x="74" y="8" width="42" height="34" data-riquadro="laterale"/>
+        <rect x="10" y="56" width="42" height="32" data-riquadro="pianta"/>
+        <text x="31" y="28" text-anchor="middle">P</text>
+        <text x="95" y="28" text-anchor="middle">L</text>
+        <text x="31" y="76" text-anchor="middle">Pi</text>
+      </svg>
+    </div>
+
+    <div class="area-lavoro">
+      <div class="tele" id="tele">
+        <figure class="tela" id="tela-a">
+          <figcaption id="didascalia-a">Proiezioni ortogonali — metodo europeo (primo diedro)</figcaption>
+          <svg id="svg-a" xmlns="http://www.w3.org/2000/svg"></svg>
+        </figure>
+        <figure class="tela nascosta" id="tela-b">
+          <figcaption id="didascalia-b">Assonometria</figcaption>
+          <svg id="svg-b" xmlns="http://www.w3.org/2000/svg"></svg>
+        </figure>
+      </div>
+
+      <aside class="pannello" id="pannello">
+        <div class="pannello-testata">
+          <h2>Comandi</h2>
+          <button type="button" id="chiudi-pannello" class="solo-stretto" aria-label="Chiudi">×</button>
+        </div>
+
+        <fieldset>
+          <legend>Visualizzazione</legend>
+          <label class="interruttore"><input type="checkbox" id="opz-nascosti" checked><span>Spigoli nascosti</span></label>
+          <label class="interruttore"><input type="checkbox" id="opz-etichette"><span>Etichette dei vertici</span></label>
+          <label class="interruttore"><input type="checkbox" id="opz-assi"><span>Assi di riferimento</span></label>
+          <label class="interruttore"><input type="checkbox" id="opz-griglia"><span>Griglia</span></label>
+        </fieldset>
+
+        <fieldset data-scheda="ortogonali">
+          <legend>Proiezioni ortogonali</legend>
+          <label class="interruttore"><input type="checkbox" id="opz-richiami" checked><span>Linee di richiamo e ribaltamento</span></label>
+          <label class="interruttore"><input type="checkbox" id="opz-piani"><span>Piani di proiezione</span></label>
+        </fieldset>
+
+        <fieldset data-scheda="assonometria">
+          <legend>Tipo di assonometria</legend>
+          <div class="pulsanti-tipo">
+            <button type="button" data-asso="isometrica">Isometrica</button>
+            <button type="button" data-asso="cavaliera">Cavaliera</button>
+            <button type="button" data-asso="monometrica">Monometrica</button>
+            <button type="button" data-asso="libera" class="attivo">Rotazione libera</button>
+          </div>
+          <div class="lettura" id="lettura-assi"></div>
+          <p class="nota" id="nota-assonometria"></p>
+          <label class="interruttore"><input type="checkbox" id="opz-ombreggiato"><span>Resa ombreggiata</span></label>
+        </fieldset>
+
+        <fieldset>
+          <legend>Confronto</legend>
+          <label class="interruttore"><input type="checkbox" id="opz-confronto"><span>Mostra due metodi affiancati</span></label>
+          <div class="alternanza" id="alternanza" hidden>
+            <button type="button" class="attivo" data-mostra="a">Proiezioni</button>
+            <button type="button" data-mostra="b">Assonometria</button>
+          </div>
+        </fieldset>
+      </aside>
+    </div>
+  </section>
+
+  <section id="sezione-palestra" hidden>
+    <div class="in-arrivo">
+      <h2>Palestra</h2>
+      <p>Gli esercizi a punteggio saranno costruiti nella Fase 4, dopo prospettiva e sezioni.</p>
+    </div>
+  </section>
+</main>
+
+<script src="js/geometria.js"></script>
+<script src="js/solidi.js"></script>
+<script src="js/disegno.js"></script>
+<script src="js/esploratore.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
