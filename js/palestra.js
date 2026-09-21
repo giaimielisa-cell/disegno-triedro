@@ -943,6 +943,7 @@ const Palestra = (function () {
     const verso = distA > distB ? migliore.pb : migliore.pa;
     return {
       ancora: ancora,
+      altroEstremo: verso,
       angoloGiusto: Math.atan2(verso[1] - ancora[1], verso[0] - ancora[0]) * 180 / Math.PI,
       lunghezza: migliore.lunghezza
     };
@@ -977,7 +978,8 @@ const Palestra = (function () {
       argomento: 'prospettiva',
       tipo: 'lettura-prospettiva',
       forma: 'lettura',
-      domanda: 'Osserva l\'immagine: è una prospettiva centrale o accidentale?',
+      domanda: 'Questa è l\'immagine prospettica di un parallelepipedo. È una prospettiva centrale o accidentale? ' +
+        'Se è accidentale dovrai poi ritrovare i punti di fuga prolungando gli spigoli.',
       scelte: [{ valore: 'centrale', etichetta: 'Centrale' }, { valore: 'accidentale', etichetta: 'Accidentale' }],
       valoreGiusto: accidentale ? 'accidentale' : 'centrale',
       bersagli: bersagli,
@@ -1101,8 +1103,10 @@ const Palestra = (function () {
     }
     // riconosciuta come accidentale: si passa a ritrovare i punti di fuga
     el.riscontro.className = 'riscontro esito-giusto';
-    el.riscontro.textContent = 'Giusto, è accidentale. Ora orienta le due rette in modo che seguano gli spigoli che fuggono: ' +
-      'il punto in cui si incontrano è il punto di fuga.';
+    el.riscontro.innerHTML = '<b>Giusto, è accidentale.</b> ' +
+      'Nel disegno sono evidenziati due spigoli, uno rosso e uno verde, che nello spazio sono orizzontali. ' +
+      'Le rette r₁ e r₂ sono rette di costruzione: trascina il loro pallino per portarle sopra lo spigolo ' +
+      'dello stesso colore e prolungarlo. Dove le due rette si incontrano cade il punto di fuga.';
     avviaRetteDiFuga(esercizio);
   }
 
@@ -1137,6 +1141,18 @@ const Palestra = (function () {
       maniglia: document.createElementNS(NS, 'circle'),
       nome: document.createElementNS(NS, 'text')
     }));
+    // gli spigoli da prolungare vengono evidenziati nei colori delle rette:
+    // così si capisce quale retta segue quale spigolo
+    esercizio.bersagli.forEach((b, i) => {
+      const spigolo = document.createElementNS(NS, 'line');
+      spigolo.setAttribute('class', 'spigolo-bersaglio retta-' + (i + 1));
+      spigolo.setAttribute('x1', b.ancora[0]);
+      spigolo.setAttribute('y1', b.ancora[1]);
+      spigolo.setAttribute('x2', b.altroEstremo[0]);
+      spigolo.setAttribute('y2', b.altroEstremo[1]);
+      g.appendChild(spigolo);
+    });
+
     const incrocio = document.createElementNS(NS, 'circle');
     incrocio.setAttribute('class', 'punto-incrocio');
     incrocio.setAttribute('r', raggio * 0.9);
@@ -1246,11 +1262,57 @@ const Palestra = (function () {
     });
     const giusta = scarti.every(s => s <= TOLLERANZA_RETTE);
     el.verifica.hidden = true;
-    esercizio.disegnaScena(el.riquadroDomanda.querySelector('svg'), true);
+
+    const svg = el.riquadroDomanda.querySelector('svg');
+    esercizio.disegnaScena(svg, true);
+    disegnaCorrezioneRette(svg, esercizio, stato.retteDiFuga);
+
+    const dettaglio = 'Scarto delle tue rette: ' +
+      scarti.map(s => Math.round(s) + '°').join(' e ') + '.';
     concludi(giusta, giusta
-      ? 'Rette orientate bene: si incontrano nel punto di fuga. ' + esercizio.spiegazione
-      : 'Le rette non seguono ancora gli spigoli (scarto di ' +
-        Math.round(Math.max.apply(null, scarti)) + '°). Nel disegno ora vedi i punti di fuga veri e la linea d\'orizzonte.');
+      ? 'Rette orientate bene: si incontrano nel punto di fuga. ' + dettaglio + ' ' + esercizio.spiegazione
+      : 'Le rette non seguono ancora gli spigoli. ' + dettaglio +
+        ' In verde vedi le rette giuste, prolungate fino ai punti di fuga; tratteggiate le tue.');
+  }
+
+  // Correzione: le rette tracciate dallo studente restano visibili, tratteggiate,
+  // accanto a quelle corrette prolungate fino ai punti di fuga.
+  function disegnaCorrezioneRette(svg, esercizio, rette) {
+    const NS = 'http://www.w3.org/2000/svg';
+    const g = document.createElementNS(NS, 'g');
+    g.setAttribute('class', 'correzione-rette');
+    const riquadro = svg.getAttribute('viewBox').split(' ').map(Number);
+    const scala = Math.max(riquadro[2], riquadro[3]);
+
+    const linea = (x1, y1, x2, y2, classe) => {
+      const l = document.createElementNS(NS, 'line');
+      l.setAttribute('x1', x1); l.setAttribute('y1', y1);
+      l.setAttribute('x2', x2); l.setAttribute('y2', y2);
+      l.setAttribute('class', classe);
+      g.appendChild(l);
+    };
+
+    rette.forEach((r, i) => {
+      const fuga = esercizio.fughe[i].p;
+      const ancora = r.bersaglio.ancora;
+      // la retta corretta: dallo spigolo fino al suo punto di fuga
+      linea(ancora[0], ancora[1], fuga[0], fuga[1], 'retta-giusta');
+      // la retta tracciata dallo studente, per confronto
+      const a = Geo.deg2rad(r.angolo);
+      const distanza = Math.hypot(fuga[0] - ancora[0], fuga[1] - ancora[1]);
+      linea(ancora[0], ancora[1],
+        ancora[0] + Math.cos(a) * distanza, ancora[1] + Math.sin(a) * distanza,
+        'retta-tentativo');
+    });
+
+    esercizio.fughe.forEach(f => {
+      const c = document.createElementNS(NS, 'circle');
+      c.setAttribute('cx', f.p[0]); c.setAttribute('cy', f.p[1]);
+      c.setAttribute('r', scala * 0.016);
+      c.setAttribute('class', 'punto-fuga');
+      g.appendChild(c);
+    });
+    svg.appendChild(g);
   }
 
   function costruisciAbbinamento(esercizio) {

@@ -422,6 +422,11 @@ text { font-family: "Segoe UI", system-ui, sans-serif; }
 .etichetta-retta { font-weight: 700; font-style: italic; }
 .etichetta-retta.retta-1 { fill: var(--evidenza); stroke: none; }
 .etichetta-retta.retta-2 { fill: #1e7a41; stroke: none; }
+.spigolo-bersaglio { stroke-width: 5; stroke-opacity: 0.35; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.spigolo-bersaglio.retta-1 { stroke: var(--evidenza); }
+.spigolo-bersaglio.retta-2 { stroke: #1e7a41; }
+.retta-giusta { stroke: #1e7a41; stroke-width: 2.2; vector-effect: non-scaling-stroke; }
+.retta-tentativo { stroke: var(--inchiostro-tenue); stroke-width: 1.6; stroke-dasharray: 7 4; vector-effect: non-scaling-stroke; }
 .punto-incrocio { fill: none; stroke: var(--blu); stroke-width: 2; vector-effect: non-scaling-stroke; }
 .rette-di-fuga .area-presa { cursor: grab; }
 .scelte-lettura { grid-column: 1 / -1; display: flex; gap: 12px; }
