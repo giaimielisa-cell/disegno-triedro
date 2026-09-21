@@ -176,6 +176,18 @@ const Palestra = (function () {
     return svg;
   }
 
+  // Un riquadro con la sua didascalia, per le domande che mostrano più disegni.
+  function pannello(contenitore, didascalia) {
+    const figura = document.createElement('figure');
+    figura.className = 'pannello-domanda';
+    const svg = nuovoSvg(figura, 'disegno-domanda');
+    const testo = document.createElement('figcaption');
+    testo.textContent = didascalia;
+    figura.appendChild(testo);
+    contenitore.appendChild(figura);
+    return svg;
+  }
+
   function disegnaViste(svg, solido) {
     Disegno.disegnaProiezioniOrtogonali(svg, solido, OPZIONI_VISTE);
   }
@@ -228,7 +240,8 @@ const Palestra = (function () {
       domanda: tipo === 'viste-al-solido'
         ? 'Queste sono le tre proiezioni ortogonali di un solido. Quale dei quattro solidi le genera?'
         : 'Questo è il solido in assonometria, collocato nel triedro di riferimento. Quale terna di proiezioni ortogonali gli corrisponde?',
-      disegnaDomanda: svg => {
+      disegnaDomanda: contenitore => {
+        const svg = nuovoSvg(contenitore, 'disegno-domanda');
         if (tipo === 'viste-al-solido') disegnaViste(svg, insieme.corretto.solido);
         else disegnaAsso(svg, nelTriedro(insieme.corretto.solido), vistaCanonica('isometrica'), { assi: true });
       },
@@ -504,7 +517,38 @@ const Palestra = (function () {
     if (!taglio.anelli.length) return null;
     const forme = Sezione.veraForma(taglio.anelli);
     if (!forme.length || forme[0].length < 3) return null;
-    return { config: config, forme: forme, firma: firmaSagoma(forme) };
+    return {
+      config: config, forme: forme, firma: firmaSagoma(forme),
+      misura: misuraSagoma(forme)
+    };
+  }
+
+  function misuraSagoma(forme) {
+    const punti = forme[0];
+    let area = 0;
+    for (let i = 0; i < punti.length; i++) {
+      const a = punti[i], b = punti[(i + 1) % punti.length];
+      area += a[0] * b[1] - b[0] * a[1];
+    }
+    const larghezza = Math.max(...punti.map(p => p[0])) - Math.min(...punti.map(p => p[0]));
+    const altezza = Math.max(...punti.map(p => p[1])) - Math.min(...punti.map(p => p[1]));
+    return {
+      area: Math.abs(area) / 2,
+      rapporto: altezza ? larghezza / altezza : 1,
+      lati: punti.length,
+      contorni: forme.length
+    };
+  }
+
+  // Due sagome vanno bene nella stessa domanda solo se la differenza si vede a
+  // occhio: senza poter misurare, uno scarto di pochi millimetri non è una
+  // domanda ma un indovinello.
+  function abbastanzaDiverse(a, b) {
+    if (a.contorni !== b.contorni) return true;
+    if (a.lati !== b.lati && (a.lati <= 12 || b.lati <= 12)) return true;
+    const scartoArea = Math.abs(a.area - b.area) / Math.max(a.area, b.area);
+    const scartoForma = Math.abs(a.rapporto - b.rapporto) / Math.max(a.rapporto, b.rapporto);
+    return scartoArea > 0.15 || scartoForma > 0.15;
   }
 
   function generaRiconoscimentoSezione() {
@@ -523,15 +567,18 @@ const Palestra = (function () {
       // sono figure vere, non inventate, e per questo plausibili
       const alternative = mescola([
         { tipo: 'orizzontale' }, { tipo: 'verticale' }, { tipo: 'profilo' },
-        { tipo: 'inclinato', inclinazione: 25 }, { tipo: 'inclinato', inclinazione: 50 },
-        { posizione: config.posizione < 50 ? 72 : 28 }
+        { tipo: 'inclinato', inclinazione: 25 }, { tipo: 'inclinato', inclinazione: 45 },
+        { tipo: 'inclinato', inclinazione: -35 },
+        { posizione: 20 }, { posizione: 40 }, { posizione: 60 }, { posizione: 80 },
+        { tipo: 'verticale', posizione: 30 }, { tipo: 'profilo', posizione: 70 }
       ]);
       const candidati = [];
       for (const modifica of alternative) {
         const altra = sezioneDi(solido, Object.assign({}, config, modifica));
         if (!altra) continue;
         if (altra.firma === corretta.firma) continue;
-        if (candidati.some(s => s.firma === altra.firma)) continue;
+        if (!abbastanzaDiverse(altra.misura, corretta.misura)) continue;
+        if (candidati.some(s => !abbastanzaDiverse(s.misura, altra.misura))) continue;
         candidati.push(altra);
       }
       // si preferiscono le sagome con un numero di lati diverso: distinguerle
@@ -560,9 +607,18 @@ const Palestra = (function () {
         forma: 'scelta',
         domanda: 'Il solido è tagliato dal piano ' + NOMI_PIANO[config.tipo] +
           ' che vedi in figura. Quale delle quattro sagome è la sezione che ne risulta, in vera forma?',
-        disegnaDomanda: svg => Disegno.disegnaAssonometria(svg, solido,
-          vistaCanonica('isometrica'),
-          Object.assign({}, OPZIONI_ASSONOMETRIA, { sezione: config })),
+        // due riquadri: il prospetto dice a che altezza taglia il piano,
+        // l'assonometria fa capire la forma del solido
+        disegnaDomanda: contenitore => {
+          const opzioniPiano = Object.assign({}, OPZIONI_VISTE, {
+            sezione: config, vistaSingola: 'prospetto'
+          });
+          Disegno.disegnaProiezioniOrtogonali(
+            pannello(contenitore, 'Prospetto, con il piano di sezione'), solido, opzioniPiano);
+          Disegno.disegnaAssonometria(
+            pannello(contenitore, 'Lo stesso solido in assonometria'), solido,
+            vistaCanonica('isometrica'), Object.assign({}, OPZIONI_ASSONOMETRIA, { sezione: config }));
+        },
         opzioni: opzioni.map(o => ({
           dato: o,
           disegna: svg => Disegno.disegnaFiguraPiana(svg, o.forme, { estensione: estensione })
@@ -622,9 +678,7 @@ const Palestra = (function () {
 
     el.riquadroDomanda.innerHTML = '';
     el.riquadroDomanda.hidden = !esercizio.disegnaDomanda;
-    if (esercizio.disegnaDomanda) {
-      esercizio.disegnaDomanda(nuovoSvg(el.riquadroDomanda, 'disegno-domanda'));
-    }
+    if (esercizio.disegnaDomanda) esercizio.disegnaDomanda(el.riquadroDomanda);
 
     el.opzioni.innerHTML = '';
     el.opzioni.className = esercizio.forma === 'abbinamento' ? 'opzioni abbinamento' : 'opzioni';
