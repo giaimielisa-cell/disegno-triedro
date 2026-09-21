@@ -918,13 +918,85 @@ const Palestra = (function () {
     };
   }
 
+  // 4. Lettura della prospettiva: riconoscere il tipo e, se accidentale,
+  // ritrovare i punti di fuga orientando due rette lungo gli spigoli che fuggono.
+
+  // Fra gli spigoli paralleli a una direzione si sceglie quello che nel disegno
+  // risulta più lungo, cioè il più leggibile.
+  function spigoloDaSeguire(solido, vista, direzione, fuga) {
+    const topo = Geo.costruisciTopologia(solido);
+    let migliore = null;
+    for (const s of topo.spigoli) {
+      const A = solido.vertici[s.a], B = solido.vertici[s.b];
+      const d = Geo.normalize(Geo.sub(B, A));
+      if (Math.abs(Math.abs(Geo.dot(d, direzione)) - 1) > 1e-4) continue;
+      const pa = vista.project(A), pb = vista.project(B);
+      const lunghezza = Math.hypot(pb[0] - pa[0], pb[1] - pa[1]);
+      if (!migliore || lunghezza > migliore.lunghezza) migliore = { pa: pa, pb: pb, lunghezza: lunghezza };
+    }
+    if (!migliore) return null;
+    // l'ancora è l'estremo lontano dal punto di fuga: la retta si orienta
+    // partendo di lì e puntando verso la fuga
+    const distA = Math.hypot(migliore.pa[0] - fuga[0], migliore.pa[1] - fuga[1]);
+    const distB = Math.hypot(migliore.pb[0] - fuga[0], migliore.pb[1] - fuga[1]);
+    const ancora = distA > distB ? migliore.pa : migliore.pb;
+    const verso = distA > distB ? migliore.pb : migliore.pa;
+    return {
+      ancora: ancora,
+      angoloGiusto: Math.atan2(verso[1] - ancora[1], verso[0] - ancora[0]) * 180 / Math.PI,
+      lunghezza: migliore.lunghezza
+    };
+  }
+
+  function generaLetturaProspettiva() {
+    const accidentale = Math.random() < 0.7;
+    const alfa = accidentale ? scegli([30, 40, 50, 60]) : 0;
+    const distanza = intero(130, 190);
+    const altezza = intero(35, 70);
+    const solido = Solidi.prismaRettangolare(intero(55, 70), intero(40, 55), intero(45, 62));
+    const posizione = { allontanamento: intero(20, 40), quota: 0 };
+    const vista = Geo.vistaProspettica({ x: 0, distanza: distanza, altezza: altezza });
+    const collocato = Disegno.collocaDietroIlQuadro(solido, posizione, alfa);
+    const fughe = Disegno.puntiDiFuga(vista, alfa).filter(f => !f.coincidePP);
+
+    let bersagli = [];
+    if (accidentale && fughe.length === 2) {
+      bersagli = fughe.map(f => spigoloDaSeguire(collocato, vista, f.direzione, f.p)).filter(Boolean);
+    }
+    if (accidentale && bersagli.length < 2) return null;
+
+    const disegnaScena = (svg, conRiscontro) => {
+      Disegno.disegnaProspettiva(svg, solido, vista, Object.assign({}, OPZIONI_ASSONOMETRIA, {
+        alfa: alfa, posizione: posizione,
+        lineeDiFuga: conRiscontro, inquadraFughe: conRiscontro,
+        mostraPunti: conRiscontro
+      }));
+    };
+
+    return {
+      argomento: 'prospettiva',
+      tipo: 'lettura-prospettiva',
+      forma: 'lettura',
+      domanda: 'Osserva l\'immagine: è una prospettiva centrale o accidentale?',
+      scelte: [{ valore: 'centrale', etichetta: 'Centrale' }, { valore: 'accidentale', etichetta: 'Accidentale' }],
+      valoreGiusto: accidentale ? 'accidentale' : 'centrale',
+      bersagli: bersagli,
+      fughe: fughe,
+      disegnaScena: disegnaScena,
+      disegnaDomanda: contenitore => disegnaScena(pannello(contenitore, 'Immagine prospettica'), false),
+      spiegazione: accidentale
+        ? 'È accidentale: nessuna faccia è parallela al quadro, quindi gli spigoli orizzontali fuggono verso due punti distinti sull\'orizzonte.'
+        : 'È centrale: la faccia frontale è parallela al quadro e resta in vera forma, mentre gli spigoli di profondità fuggono tutti nel punto principale.'
+    };
+  }
+
   // --- Registro dei generatori ---
 
   const GENERATORI = {
     ortogonali: [generaEsercizioOrtogonali],
     assonometria: [generaTipoAssonometria, generaCoefficienti, generaErroreCostruzione],
     sezioni: [generaRiconoscimentoSezione],
-    prospettiva: [generaPuntiDiFuga, generaEffettoParametri, generaProspettivaAllaPianta]
+    prospettiva: [generaPuntiDiFuga, generaEffettoParametri, generaProspettivaAllaPianta, generaLetturaProspettiva]
   };
 
   function generatoriAttivi() {
@@ -956,14 +1028,17 @@ const Palestra = (function () {
 
     el.riquadroDomanda.innerHTML = '';
     el.riquadroDomanda.hidden = !esercizio.disegnaDomanda;
+    // nella lettura le risposte sono due soli pulsanti: il disegno può prendersi più spazio
+    el.riquadroDomanda.classList.toggle('alto', esercizio.forma === 'lettura');
     if (esercizio.disegnaDomanda) esercizio.disegnaDomanda(el.riquadroDomanda);
 
     el.opzioni.innerHTML = '';
-    const quante = esercizio.forma === 'abbinamento' ? 3 : esercizio.opzioni.length;
+    const quante = esercizio.forma === 'scelta' ? esercizio.opzioni.length : 3;
     el.opzioni.className = 'opzioni opzioni-' + quante +
       (esercizio.forma === 'abbinamento' ? ' abbinamento' : '') +
       (esercizio.disposizioneOpzioni === 'colonna' ? ' in-colonna' : '');
     if (esercizio.forma === 'abbinamento') costruisciAbbinamento(esercizio);
+    else if (esercizio.forma === 'lettura') costruisciLettura(esercizio);
     else costruisciScelta(esercizio);
   }
 
@@ -989,6 +1064,193 @@ const Palestra = (function () {
       carta.addEventListener('click', () => rispondi(indice));
       el.opzioni.appendChild(carta);
     });
+  }
+
+  // Esercizio di lettura: prima si riconosce il tipo, poi si orientano le due
+  // rette di fuga finché non seguono gli spigoli e si incontrano nel punto di fuga.
+  const TOLLERANZA_RETTE = 5;   // gradi
+
+  function costruisciLettura(esercizio) {
+    const scelte = document.createElement('div');
+    scelte.className = 'scelte-lettura';
+    esercizio.scelte.forEach(scelta => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'carta-opzione opzione-testo';
+      b.textContent = scelta.etichetta;
+      b.addEventListener('click', () => rispondiLettura(scelta.valore, b));
+      scelte.appendChild(b);
+    });
+    el.opzioni.appendChild(scelte);
+  }
+
+  function rispondiLettura(valore, pulsante) {
+    if (stato.risposto) return;
+    const esercizio = stato.esercizio;
+    const giusta = valore === esercizio.valoreGiusto;
+    el.opzioni.querySelectorAll('.carta-opzione').forEach(b => {
+      b.disabled = true;
+      if (b === pulsante) b.classList.add(giusta ? 'giusta' : 'sbagliata');
+    });
+
+    if (!giusta || esercizio.valoreGiusto === 'centrale') {
+      stato.risposto = true;
+      esercizio.disegnaScena(el.riquadroDomanda.querySelector('svg'), true);
+      concludi(giusta, (giusta ? 'Giusto. ' : 'Non è così. ') + esercizio.spiegazione);
+      return;
+    }
+    // riconosciuta come accidentale: si passa a ritrovare i punti di fuga
+    el.riscontro.className = 'riscontro esito-giusto';
+    el.riscontro.textContent = 'Giusto, è accidentale. Ora orienta le due rette in modo che seguano gli spigoli che fuggono: ' +
+      'il punto in cui si incontrano è il punto di fuga.';
+    avviaRetteDiFuga(esercizio);
+  }
+
+  function avviaRetteDiFuga(esercizio) {
+    const svg = el.riquadroDomanda.querySelector('svg');
+    const NS = 'http://www.w3.org/2000/svg';
+    const g = document.createElementNS(NS, 'g');
+    g.setAttribute('class', 'rette-di-fuga');
+    svg.appendChild(g);
+
+    // le rette si prolungano oltre il solido: l'inquadratura va allargata,
+    // altrimenti verrebbero tagliate dal bordo del riquadro
+    const riquadro = svg.getAttribute('viewBox').split(' ').map(Number);
+    const fattore = 1.3;
+    const cx = riquadro[0] + riquadro[2] / 2, cy = riquadro[1] + riquadro[3] / 2;
+    const larghezza = riquadro[2] * fattore, altezza = riquadro[3] * fattore;
+    svg.setAttribute('viewBox', [cx - larghezza / 2, cy - altezza / 2, larghezza, altezza].join(' '));
+
+    const scala = Math.max(larghezza, altezza);
+    const raggio = scala * 0.022;
+    const lunghezza = scala * 0.3;
+
+    // le rette partono disorientate: vanno ruotate fino a seguire lo spigolo
+    const rette = esercizio.bersagli.map((b, i) => ({
+      bersaglio: b,
+      angolo: b.angoloGiusto + (i === 0 ? 34 : -34)
+    }));
+
+    const elementi = rette.map(() => ({
+      linea: document.createElementNS(NS, 'line'),
+      presa: document.createElementNS(NS, 'circle'),
+      maniglia: document.createElementNS(NS, 'circle'),
+      nome: document.createElementNS(NS, 'text')
+    }));
+    const incrocio = document.createElementNS(NS, 'circle');
+    incrocio.setAttribute('class', 'punto-incrocio');
+    incrocio.setAttribute('r', raggio * 0.9);
+
+    elementi.forEach((e, i) => {
+      // due colori diversi: le rette vanno distinte l'una dall'altra
+      e.linea.setAttribute('class', 'retta-di-fuga retta-' + (i + 1));
+      e.presa.setAttribute('class', 'area-presa');
+      e.presa.setAttribute('r', raggio * 3);
+      e.presa.dataset.retta = i;
+      e.maniglia.setAttribute('class', 'maniglia-retta maniglia-' + (i + 1));
+      e.maniglia.setAttribute('r', raggio);
+      e.nome.setAttribute('class', 'etichetta-retta retta-' + (i + 1));
+      e.nome.setAttribute('font-size', raggio * 2.4);
+      e.nome.textContent = 'r' + (i === 0 ? '₁' : '₂');
+      g.appendChild(e.linea);
+      g.appendChild(e.maniglia);
+      g.appendChild(e.nome);
+      g.appendChild(e.presa);
+    });
+    g.appendChild(incrocio);
+
+    function aggiorna() {
+      rette.forEach((r, i) => {
+        const a = Geo.deg2rad(r.angolo);
+        const fine = [r.bersaglio.ancora[0] + Math.cos(a) * lunghezza,
+                      r.bersaglio.ancora[1] + Math.sin(a) * lunghezza];
+        const e = elementi[i];
+        e.linea.setAttribute('x1', r.bersaglio.ancora[0]);
+        e.linea.setAttribute('y1', r.bersaglio.ancora[1]);
+        e.linea.setAttribute('x2', fine[0]);
+        e.linea.setAttribute('y2', fine[1]);
+        e.maniglia.setAttribute('cx', fine[0]);
+        e.maniglia.setAttribute('cy', fine[1]);
+        e.presa.setAttribute('cx', fine[0]);
+        e.presa.setAttribute('cy', fine[1]);
+        e.nome.setAttribute('x', fine[0] + raggio * 1.2);
+        e.nome.setAttribute('y', fine[1] - raggio * 1.2);
+      });
+      const p = intersezione(rette);
+      if (p) {
+        incrocio.setAttribute('cx', p[0]);
+        incrocio.setAttribute('cy', p[1]);
+        incrocio.setAttribute('visibility', 'visible');
+      } else {
+        incrocio.setAttribute('visibility', 'hidden');
+      }
+    }
+
+    function intersezione(rette) {
+      const [r1, r2] = rette;
+      const a1 = Geo.deg2rad(r1.angolo), a2 = Geo.deg2rad(r2.angolo);
+      const d1 = [Math.cos(a1), Math.sin(a1)], d2 = [Math.cos(a2), Math.sin(a2)];
+      const den = d1[0] * d2[1] - d1[1] * d2[0];
+      if (Math.abs(den) < 1e-6) return null;
+      const p1 = r1.bersaglio.ancora, p2 = r2.bersaglio.ancora;
+      const t = ((p2[0] - p1[0]) * d2[1] - (p2[1] - p1[1]) * d2[0]) / den;
+      return [p1[0] + d1[0] * t, p1[1] + d1[1] * t];
+    }
+
+    let trascinata = null;
+    function coordinate(e) {
+      const ctm = svg.getScreenCTM();
+      if (!ctm) return null;
+      const punto = svg.createSVGPoint();
+      punto.x = e.clientX; punto.y = e.clientY;
+      return punto.matrixTransform(ctm.inverse());
+    }
+    svg.addEventListener('pointerdown', e => {
+      const nodo = e.target.closest('[data-retta]');
+      if (!nodo || stato.risposto) return;
+      trascinata = Number(nodo.dataset.retta);
+      svg.setPointerCapture(e.pointerId);
+      e.preventDefault();
+    });
+    svg.addEventListener('pointermove', e => {
+      if (trascinata === null) return;
+      const p = coordinate(e);
+      if (!p) return;
+      const r = rette[trascinata];
+      r.angolo = Math.atan2(p.y - r.bersaglio.ancora[1], p.x - r.bersaglio.ancora[0]) * 180 / Math.PI;
+      aggiorna();
+    });
+    const fine = e => {
+      if (trascinata === null) return;
+      trascinata = null;
+      if (svg.hasPointerCapture && svg.hasPointerCapture(e.pointerId)) svg.releasePointerCapture(e.pointerId);
+    };
+    svg.addEventListener('pointerup', fine);
+    svg.addEventListener('pointercancel', fine);
+
+    aggiorna();
+    el.verifica.hidden = false;
+    el.verifica.disabled = false;
+    el.verifica.textContent = 'Verifica le rette di fuga';
+    stato.retteDiFuga = rette;
+  }
+
+  function verificaRetteDiFuga() {
+    if (stato.risposto) return;
+    stato.risposto = true;
+    const esercizio = stato.esercizio;
+    const scarti = stato.retteDiFuga.map(r => {
+      let d = Math.abs(((r.angolo - r.bersaglio.angoloGiusto) % 360 + 360) % 360);
+      if (d > 180) d = 360 - d;
+      return Math.min(d, Math.abs(180 - d));      // la retta vale anche capovolta
+    });
+    const giusta = scarti.every(s => s <= TOLLERANZA_RETTE);
+    el.verifica.hidden = true;
+    esercizio.disegnaScena(el.riquadroDomanda.querySelector('svg'), true);
+    concludi(giusta, giusta
+      ? 'Rette orientate bene: si incontrano nel punto di fuga. ' + esercizio.spiegazione
+      : 'Le rette non seguono ancora gli spigoli (scarto di ' +
+        Math.round(Math.max.apply(null, scarti)) + '°). Nel disegno ora vedi i punti di fuga veri e la linea d\'orizzonte.');
   }
 
   function costruisciAbbinamento(esercizio) {
@@ -1140,7 +1402,10 @@ const Palestra = (function () {
     };
 
     el.prossimo.addEventListener('click', () => { el.verifica.hidden = true; nuovoEsercizio(); });
-    el.verifica.addEventListener('click', verificaAbbinamento);
+    el.verifica.addEventListener('click', () => {
+      if (stato.esercizio && stato.esercizio.forma === 'lettura') verificaRetteDiFuga();
+      else verificaAbbinamento();
+    });
     el.livelli.forEach(b => b.addEventListener('click', () => {
       stato.livello = b.dataset.livello;
       el.livelli.forEach(x => x.classList.toggle('attivo', x === b));

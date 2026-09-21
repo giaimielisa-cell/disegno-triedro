@@ -915,6 +915,7 @@ const Disegno = (function () {
     disegnaAssonometria,
     disegnaProspettiva,
     disegnaFiguraPiana,
+    collocaDietroIlQuadro,
     puntiDiFuga,
     segmentiProiettati,
     limiti
