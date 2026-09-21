@@ -381,6 +381,8 @@ text { font-family: "Segoe UI", system-ui, sans-serif; }
 }
 
 .opzioni { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.opzioni-3 { grid-template-columns: repeat(3, 1fr); }
+.opzioni-2 { grid-template-columns: repeat(2, 1fr); }
 .carta-opzione {
   position: relative;
   background: var(--carta-chiara);

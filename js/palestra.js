@@ -777,7 +777,8 @@ const Palestra = (function () {
       { fughe: [d, -d], perche: 'varrebbe solo se l\'oggetto fosse ruotato di 45°' },
       { fughe: [d / (2 * Math.tan(a)), -d * Math.tan(a) / 2], perche: 'la distanza del punto di vista è stata dimezzata' }
     ];
-    const scelti = mescola(alternative).slice(0, 3);
+    // sulla prospettiva bastano tre alternative: l'argomento è già impegnativo
+    const scelti = mescola(alternative).slice(0, 2);
     const opzioni = mescola([{ fughe: corretti, perche: null }].concat(scelti));
     const indiceCorretto = opzioni.findIndex(o => o.perche === null);
     const estensione = Math.max.apply(null,
@@ -789,7 +790,7 @@ const Palestra = (function () {
       forma: 'scelta',
       disposizioneOpzioni: 'colonna',
       domanda: 'La pianta mostra il quadro, il punto di vista e l\'oggetto ruotato di ' + scena.alfa +
-        '°. Quale delle quattro alternative dà la posizione corretta dei punti di fuga sulla linea d\'orizzonte?',
+        '°. Quale delle tre alternative dà la posizione corretta dei punti di fuga sulla linea d\'orizzonte?',
       disegnaDomanda: contenitore => {
         disegnaPiantaScena(pannello(contenitore, 'Pianta: quadro, punto di vista e oggetto'), scena, false);
       },
@@ -825,8 +826,7 @@ const Palestra = (function () {
     const cambio = scegli(cambi);
     const modificata = Object.assign({}, base, { [cambio.chiave]: cambio.valore });
 
-    const etichette = cambi.map(c => c.etichetta).concat(['la posizione laterale dell\'osservatore']);
-    const opzioni = mescola(etichette.map(e => ({ etichetta: e })));
+    const opzioni = mescola(cambi.map(c => ({ etichetta: c.etichetta })));
     const indiceCorretto = opzioni.findIndex(o => o.etichetta === cambio.etichetta);
 
     const disegna = (svg, config, riquadro) => Disegno.disegnaProspettiva(svg, solido,
@@ -883,7 +883,7 @@ const Palestra = (function () {
       { distanza: Math.round(scena.distanza * scegli([0.55, 1.7])) },
       { xOsservatore: scegli([-45, 45]), x: 0 },
       { alfa: 90 - scena.alfa }
-    ]).slice(0, 3).map(m => Object.assign({}, scena, m));
+    ]).slice(0, 2).map(m => Object.assign({}, scena, m));
     const opzioni = mescola([scena].concat(alternative));
     const indiceCorretto = opzioni.indexOf(scena);
     const estensione = Math.max.apply(null, opzioni.map(o =>
@@ -893,7 +893,7 @@ const Palestra = (function () {
       argomento: 'prospettiva',
       tipo: 'prospettiva-alla-pianta',
       forma: 'scelta',
-      domanda: 'Questa è l\'immagine prospettica di un parallelepipedo. Quale delle quattro piante rappresenta la configurazione di punto di vista e oggetto che l\'ha generata?',
+      domanda: 'Questa è l\'immagine prospettica di un parallelepipedo. Quale delle tre piante rappresenta la configurazione di punto di vista e oggetto che l\'ha generata?',
       disegnaDomanda: contenitore => {
         const svg = pannello(contenitore, 'Immagine prospettica');
         Disegno.disegnaProspettiva(svg, solido,
@@ -959,7 +959,8 @@ const Palestra = (function () {
     if (esercizio.disegnaDomanda) esercizio.disegnaDomanda(el.riquadroDomanda);
 
     el.opzioni.innerHTML = '';
-    el.opzioni.className = 'opzioni' +
+    const quante = esercizio.forma === 'abbinamento' ? 3 : esercizio.opzioni.length;
+    el.opzioni.className = 'opzioni opzioni-' + quante +
       (esercizio.forma === 'abbinamento' ? ' abbinamento' : '') +
       (esercizio.disposizioneOpzioni === 'colonna' ? ' in-colonna' : '');
     if (esercizio.forma === 'abbinamento') costruisciAbbinamento(esercizio);
