@@ -208,6 +208,26 @@ section { flex: 1; display: flex; flex-direction: column; min-height: 0; padding
 .trascinabile-punto { cursor: ew-resize; }
 .etichetta-punto { fill: var(--inchiostro); font-weight: 700; }
 .etichetta-orizzonte { fill: var(--blu); }
+.piano-sezione {
+  fill: var(--evidenza);
+  fill-opacity: 0.12;
+  stroke: var(--evidenza);
+  stroke-width: 1.2;
+  stroke-dasharray: 10 3 2 3;
+  vector-effect: non-scaling-stroke;
+}
+.tratteggio-sezione {
+  stroke: var(--inchiostro);
+  stroke-width: 0.8;
+  vector-effect: non-scaling-stroke;
+}
+.contorno-sezione {
+  fill: none;
+  stroke: var(--inchiostro);
+  stroke-width: 2.4;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
 .piano-proiezione { fill: var(--blu-chiaro); fill-opacity: 0.35; stroke: var(--blu); stroke-width: 1; stroke-dasharray: 4 3; vector-effect: non-scaling-stroke; }
 .faccia { stroke: none; }
 

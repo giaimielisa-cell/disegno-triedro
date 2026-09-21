@@ -43,7 +43,7 @@
       <button type="button" role="tab" class="attivo" data-scheda="ortogonali">Proiezioni ortogonali</button>
       <button type="button" role="tab" data-scheda="assonometria">Assonometria</button>
       <button type="button" role="tab" data-scheda="prospettiva">Prospettiva</button>
-      <button type="button" role="tab" data-scheda="sezioni" disabled title="In arrivo nella prossima fase">Sezioni</button>
+      <button type="button" role="tab" data-scheda="sezioni">Sezioni</button>
     </div>
 
     <div class="selettore-vista" id="selettore-vista" hidden>
@@ -111,6 +111,29 @@
           </div>
         </fieldset>
 
+        <fieldset data-scheda="sezioni">
+          <legend>Piano di sezione</legend>
+          <label class="interruttore"><input type="checkbox" id="sez-attiva"><span>Inserisci il piano di sezione</span></label>
+          <div class="pulsanti-tipo">
+            <button type="button" data-sez="orizzontale" class="attivo">Orizzontale</button>
+            <button type="button" data-sez="verticale">Verticale</button>
+            <button type="button" data-sez="profilo">Di profilo</button>
+            <button type="button" data-sez="inclinato">Inclinato</button>
+          </div>
+          <div class="cursore">
+            <label for="sez-posizione">Posizione del piano <output id="val-sez-posizione">50</output></label>
+            <input type="range" id="sez-posizione" min="0" max="100" step="1" value="50">
+          </div>
+          <div class="cursore" id="cursore-inclinazione" hidden>
+            <label for="sez-inclinazione">Inclinazione <output id="val-sez-inclinazione">30</output>°</label>
+            <input type="range" id="sez-inclinazione" min="-75" max="75" step="1" value="30">
+          </div>
+          <label class="interruttore"><input type="checkbox" id="sez-effettuata"><span>Sezione effettuata (rimuovi la parte davanti)</span></label>
+          <label class="interruttore"><input type="checkbox" id="sez-invertito"><span>Inverti la parte rimossa</span></label>
+          <label class="interruttore"><input type="checkbox" id="sez-vera-forma"><span>Mostra la vera forma ribaltata</span></label>
+          <p class="nota">La sezione compare anche nelle proiezioni ortogonali, nell'assonometria e in prospettiva.</p>
+        </fieldset>
+
         <fieldset data-scheda="prospettiva">
           <legend>Tipo di prospettiva</legend>
           <div class="pulsanti-tipo">
@@ -169,6 +192,7 @@
 
 <script src="js/geometria.js"></script>
 <script src="js/solidi.js"></script>
+<script src="js/sezione.js"></script>
 <script src="js/disegno.js"></script>
 <script src="js/esploratore.js"></script>
 <script src="js/app.js"></script>

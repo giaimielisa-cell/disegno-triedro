@@ -29,6 +29,116 @@ const Disegno = (function () {
     };
   }
 
+  // --- Sezione ---
+
+  // Se la sezione è attiva prepara il solido tagliato e i contorni della
+  // figura di sezione; altrimenti restituisce il solido intero.
+  function applicaSezione(solido, opzioni) {
+    const s = opzioni.sezione;
+    if (!s || !s.attiva) return { solido: solido, piano: null, anelli: null };
+    const piano = Sezione.piano(solido, s);
+    const taglio = Sezione.taglia(solido, piano);
+    return {
+      solido: s.effettuata ? taglio.solido : solido,
+      piano: piano,
+      anelli: s.effettuata ? taglio.anelli : null
+    };
+  }
+
+  function trasformaAnelli(anelli, f) {
+    return anelli ? anelli.map(a => a.map(f)) : null;
+  }
+
+  // Tratteggio a 45° della figura di sezione, ritagliato sul contorno con la
+  // regola pari-dispari (vale anche per sezioni con più contorni o con fori).
+  function disegnaTratteggio(gruppo, anelli2D, passo) {
+    const dir = [Math.SQRT1_2, -Math.SQRT1_2];      // 45° verso l'alto a destra
+    const perp = [-dir[1], dir[0]];
+    const proiezioni = [];
+    anelli2D.forEach(a => a.forEach(p => proiezioni.push(p[0] * perp[0] + p[1] * perp[1])));
+    if (!proiezioni.length) return;
+    const minimo = Math.min(...proiezioni), massimo = Math.max(...proiezioni);
+    if (massimo - minimo < 1e-6) return;
+    const numero = Math.min(240, Math.ceil((massimo - minimo) / passo));
+    const passoEffettivo = (massimo - minimo) / Math.max(numero, 1);
+
+    for (let k = 1; k < numero; k++) {
+      const t = minimo + k * passoEffettivo;
+      const incroci = [];
+      for (const anello of anelli2D) {
+        for (let i = 0; i < anello.length; i++) {
+          const A = anello[i], B = anello[(i + 1) % anello.length];
+          const a = A[0] * perp[0] + A[1] * perp[1] - t;
+          const b = B[0] * perp[0] + B[1] * perp[1] - t;
+          if ((a <= 0 && b > 0) || (a > 0 && b <= 0)) {
+            const s = a / (a - b);
+            const P = [A[0] + (B[0] - A[0]) * s, A[1] + (B[1] - A[1]) * s];
+            incroci.push(P[0] * dir[0] + P[1] * dir[1]);
+          }
+        }
+      }
+      incroci.sort((x, y) => x - y);
+      for (let i = 0; i + 1 < incroci.length; i += 2) {
+        const p1 = [dir[0] * incroci[i] + perp[0] * t, dir[1] * incroci[i] + perp[1] * t];
+        const p2 = [dir[0] * incroci[i + 1] + perp[0] * t, dir[1] * incroci[i + 1] + perp[1] * t];
+        gruppo.appendChild(linea(p1[0], p1[1], p2[0], p2[1], 'tratteggio-sezione'));
+      }
+    }
+  }
+
+  function disegnaFiguraDiSezione(gruppo, anelli, vista, off, dimensione) {
+    if (!anelli || !anelli.length) return;
+    const anelli2D = anelli.map(a => a.map(p => {
+      const q = vista.project(p);
+      return [q[0] + off[0], q[1] + off[1]];
+    }));
+    const g = el('g', { class: 'figura-sezione' });
+    disegnaTratteggio(g, anelli2D, dimensione * 0.05);
+    for (const anello of anelli2D) {
+      const punti = anello.map(p => p[0].toFixed(2) + ',' + p[1].toFixed(2)).join(' ');
+      g.appendChild(el('polygon', { points: punti, class: 'contorno-sezione' }));
+    }
+    gruppo.appendChild(g);
+  }
+
+  function disegnaPianoSezione(gruppo, piano, vista, off, trasforma) {
+    const rettangolo = Sezione.rettangoloDelPiano(piano, 0.3).map(trasforma || (p => p));
+    const punti = rettangolo.map(p => {
+      const q = vista.project(p);
+      return (q[0] + off[0]).toFixed(2) + ',' + (q[1] + off[1]).toFixed(2);
+    }).join(' ');
+    gruppo.appendChild(el('polygon', { points: punti, class: 'piano-sezione' }));
+  }
+
+  // Vera forma della sezione, ribaltata sul piano del disegno e affiancata
+  // alla vista.
+  function disegnaVeraForma(gruppo, anelli, posizione, dimensione, dimTesto) {
+    if (!anelli || !anelli.length) return;
+    const forme = Sezione.veraForma(anelli);
+    const tutti = [].concat.apply([], forme);
+    const x0 = Math.min(...tutti.map(p => p[0])), x1 = Math.max(...tutti.map(p => p[0]));
+    const y0 = Math.min(...tutti.map(p => p[1])), y1 = Math.max(...tutti.map(p => p[1]));
+    const dx = posizione[0] - x0, dy = posizione[1] - y0;
+    const spostate = forme.map(f => f.map(p => [p[0] + dx, p[1] + dy]));
+
+    const g = el('g', { class: 'vera-forma' });
+    disegnaTratteggio(g, spostate, dimensione * 0.05);
+    for (const forma of spostate) {
+      g.appendChild(el('polygon', {
+        points: forma.map(p => p[0].toFixed(2) + ',' + p[1].toFixed(2)).join(' '),
+        class: 'contorno-sezione'
+      }));
+    }
+    const t = el('text', {
+      x: posizione[0], y: posizione[1] - dimTesto * 0.6,
+      class: 'titolo-vista', 'font-size': dimTesto
+    });
+    t.textContent = 'Vera forma della sezione';
+    g.appendChild(t);
+    gruppo.appendChild(g);
+    return { larghezza: x1 - x0, altezza: y1 - y0 };
+  }
+
   // --- Segmenti proiettati di un solido in una vista ---
 
   function segmentiProiettati(solido, vista) {
@@ -150,12 +260,15 @@ const Disegno = (function () {
     const dx = -distanzaPL - b.x1;      // a sinistra del piano laterale
     const dy = allontanamento - b.y0;   // davanti al piano verticale
     const dz = quota - b.z0;            // appoggiato al P.O. o sollevato di "quota"
+    const trasla = v => [v[0] + dx, v[1] + dy, v[2] + dz];
     const collocato = {
       id: solido.id,
       nome: solido.nome,
       categoria: solido.categoria,
-      vertici: solido.vertici.map(v => [v[0] + dx, v[1] + dy, v[2] + dz]),
-      facce: solido.facce
+      vertici: solido.vertici.map(trasla),
+      facce: solido.facce,
+      anelli: trasformaAnelli(solido.anelli, trasla),
+      trasforma: trasla
     };
     solido._collocato = { chiave: chiave, solido: collocato };
     return collocato;
@@ -251,7 +364,8 @@ const Disegno = (function () {
   }
 
   function disegnaProiezioniOrtogonali(svg, solidoOriginale, opzioni) {
-    const solido = collocaNelTriedro(solidoOriginale, opzioni.posizione);
+    const sezione = applicaSezione(solidoOriginale, opzioni);
+    const solido = collocaNelTriedro(sezione.solido, opzioni.posizione);
     const b = limiti(solido);
     const dimensione = Math.max(b.x1 - b.x0, b.y1 - b.y0, b.z1 - b.z0);
     const dimTesto = dimensione * 0.1;
@@ -271,10 +385,17 @@ const Disegno = (function () {
 
     for (const vista of viste) {
       const gv = el('g', { class: 'vista vista-' + vista.nome });
+      if (sezione.piano && !opzioni.sezione.effettuata) {
+        disegnaPianoSezione(gv, sezione.piano, vista, [0, 0], solido.trasforma);
+      }
       disegnaSpigoli(gv, solido, vista, [0, 0], opzioni);
+      disegnaFiguraDiSezione(gv, solido.anelli, vista, [0, 0], dimensione);
       if (opzioni.etichette) disegnaEtichette(gv, solido, vista, [0, 0], dimTesto * 0.85);
       g.appendChild(gv);
       g.appendChild(titoloVista(vista, b, dimTesto, margine));
+    }
+    if (solido.anelli && opzioni.sezione.veraForma) {
+      disegnaVeraForma(g, solido.anelli, [b.y1 + margine * 3, -b.z1], dimensione, dimTesto);
     }
     svg.appendChild(g);
     adattaViewBox(svg, g, margine);
@@ -313,10 +434,16 @@ const Disegno = (function () {
     const minY = Math.min(...ruotati.map(v => v[1]));
     const minZ = Math.min(...ruotati.map(v => v[2]));
     const cx = (Math.min(...ruotati.map(v => v[0])) + Math.max(...ruotati.map(v => v[0]))) / 2;
+    const trasforma = v => {
+      const r = Geo.matVec(m, v);
+      return [r[0] - cx, r[1] - minY + allontanamento, r[2] - minZ + quota];
+    };
     const collocato = {
       id: solido.id, nome: solido.nome, categoria: solido.categoria,
       vertici: ruotati.map(v => [v[0] - cx, v[1] - minY + allontanamento, v[2] - minZ + quota]),
-      facce: solido.facce
+      facce: solido.facce,
+      anelli: trasformaAnelli(solido.anelli, trasforma),
+      trasforma: trasforma
     };
     solido._dietroQuadro = { chiave: chiave, solido: collocato };
     return collocato;
@@ -334,7 +461,8 @@ const Disegno = (function () {
 
   function disegnaProspettiva(svg, solidoOriginale, vista, opzioni) {
     svuota(svg);
-    const solido = collocaDietroIlQuadro(solidoOriginale, opzioni.posizione, opzioni.alfa);
+    const sezione = applicaSezione(solidoOriginale, opzioni);
+    const solido = collocaDietroIlQuadro(sezione.solido, opzioni.posizione, opzioni.alfa);
     const g = el('g', {});
     const b = limiti(solido);
     const dimensione = Math.max(b.x1 - b.x0, b.y1 - b.y0, b.z1 - b.z0);
@@ -385,8 +513,12 @@ const Disegno = (function () {
     const gv = el('g', { class: 'vista vista-prospettiva' });
     const ombreggiato = opzioni.resa === 'ombreggiato';
     if (ombreggiato) disegnaFacce(gv, solido, vista, [0, 0]);
+    if (sezione.piano && !opzioni.sezione.effettuata) {
+      disegnaPianoSezione(gv, sezione.piano, vista, [0, 0], solido.trasforma);
+    }
     disegnaSpigoli(gv, solido, vista, [0, 0],
       ombreggiato ? Object.assign({}, opzioni, { spigoliNascosti: false }) : opzioni);
+    disegnaFiguraDiSezione(gv, solido.anelli, vista, [0, 0], dimensione);
     if (opzioni.etichette) disegnaEtichette(gv, solido, vista, [0, 0], dimTesto * 0.85);
     g.appendChild(gv);
 
@@ -459,8 +591,10 @@ const Disegno = (function () {
 
   // --- Assonometria ---
 
-  function disegnaAssonometria(svg, solido, vista, opzioni) {
+  function disegnaAssonometria(svg, solidoOriginale, vista, opzioni) {
     svuota(svg);
+    const sezione = applicaSezione(solidoOriginale, opzioni);
+    const solido = sezione.solido;
     const g = el('g', {});
     const b = limiti(solido);
     const dimensione = Math.max(b.x1 - b.x0, b.y1 - b.y0, b.z1 - b.z0);
@@ -474,8 +608,15 @@ const Disegno = (function () {
     const opzioniSpigoli = ombreggiato
       ? Object.assign({}, opzioni, { spigoliNascosti: false })
       : opzioni;
+    if (sezione.piano && !opzioni.sezione.effettuata) {
+      disegnaPianoSezione(g, sezione.piano, vista, [0, 0], null);
+    }
     disegnaSpigoli(g, solido, vista, [0, 0], opzioniSpigoli);
+    disegnaFiguraDiSezione(g, sezione.anelli, vista, [0, 0], dimensione);
     if (opzioni.etichette) disegnaEtichette(g, solido, vista, [0, 0], dimTesto);
+    if (sezione.anelli && opzioni.sezione.veraForma) {
+      disegnaVeraForma(g, sezione.anelli, [b.x1 + dimensione * 0.5, -b.z1], dimensione, dimTesto * 1.1);
+    }
 
     svg.appendChild(g);
     adattaViewBox(svg, g, dimensione * 0.18);

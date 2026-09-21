@@ -10,6 +10,10 @@ const Esploratore = (function () {
     scheda: 'ortogonali',
     assonometria: { tipo: 'libera', yaw: Geo.deg2rad(35), pitch: Geo.deg2rad(25) },
     prospettiva: { tipo: 'centrale', distanza: 140, altezza: 45, alfa: 45, x: 0 },
+    sezione: {
+      attiva: false, tipo: 'orizzontale', posizione: 50, inclinazione: 30,
+      effettuata: false, invertito: false, veraForma: false
+    },
     confronto: false,
     mostraNelloStretto: 'a',
     vistaSingola: 'prospetto',
@@ -57,7 +61,9 @@ const Esploratore = (function () {
       selettoreVista: document.getElementById('selettore-vista'),
       schema: document.getElementById('schema-disposizione'),
       pulsantiProsp: document.querySelectorAll('[data-prosp]'),
-      cursoreAlfa: document.getElementById('cursore-alfa')
+      pulsantiSez: document.querySelectorAll('[data-sez]'),
+      cursoreAlfa: document.getElementById('cursore-alfa'),
+      cursoreInclinazione: document.getElementById('cursore-inclinazione')
     };
 
     riempiElencoSolidi();
@@ -159,6 +165,33 @@ const Esploratore = (function () {
       aggiorna();
     }));
 
+    el.pulsantiSez.forEach(b => b.addEventListener('click', () => {
+      stato.sezione.tipo = b.dataset.sez;
+      if (!stato.sezione.attiva) {
+        stato.sezione.attiva = true;
+        document.getElementById('sez-attiva').checked = true;
+      }
+      aggiorna();
+    }));
+
+    [['sez-attiva', 'attiva'], ['sez-effettuata', 'effettuata'],
+     ['sez-invertito', 'invertito'], ['sez-vera-forma', 'veraForma']].forEach(([id, chiave]) => {
+      document.getElementById(id).addEventListener('change', e => {
+        stato.sezione[chiave] = e.target.checked;
+        aggiorna();
+      });
+    });
+
+    [['sez-posizione', 'posizione'], ['sez-inclinazione', 'inclinazione']].forEach(([id, chiave]) => {
+      const cursore = document.getElementById(id);
+      const valore = document.getElementById('val-' + id);
+      cursore.addEventListener('input', () => {
+        stato.sezione[chiave] = Number(cursore.value);
+        valore.textContent = cursore.value;
+        aggiorna();
+      });
+    });
+
     el.alternanza.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
       stato.mostraNelloStretto = b.dataset.mostra;
       aggiorna();
@@ -204,7 +237,8 @@ const Esploratore = (function () {
     let trascinando = false, ultimoX = 0, ultimoY = 0;
 
     svg.addEventListener('pointerdown', e => {
-      if (schedaDi() !== 'assonometria') return;
+      const scheda = schedaDi();
+      if (scheda !== 'assonometria' && scheda !== 'sezioni') return;
       trascinando = true;
       ultimoX = e.clientX;
       ultimoY = e.clientY;
@@ -317,6 +351,8 @@ const Esploratore = (function () {
     el.pulsantiAsso.forEach(b => b.classList.toggle('attivo', b.dataset.asso === stato.assonometria.tipo));
     el.pulsantiProsp.forEach(b => b.classList.toggle('attivo', b.dataset.prosp === stato.prospettiva.tipo));
     el.cursoreAlfa.hidden = stato.prospettiva.tipo === 'centrale';
+    el.pulsantiSez.forEach(b => b.classList.toggle('attivo', b.dataset.sez === stato.sezione.tipo));
+    el.cursoreInclinazione.hidden = stato.sezione.tipo !== 'inclinato';
 
     const stretto = schermoStretto.matches;
     const schedaA = schedaDelRiquadro('a');
@@ -347,24 +383,28 @@ const Esploratore = (function () {
   }
 
   function disegnaRiquadro(tela, svg, didascalia, scheda, solido, vistaSingolaAttiva) {
-    tela.classList.toggle('trascinabile', scheda === 'assonometria');
+    tela.classList.toggle('trascinabile', scheda === 'assonometria' || scheda === 'sezioni');
+    const opzioni = Object.assign({}, stato.opzioni, {
+      posizione: stato.posizione,
+      sezione: stato.sezione
+    });
+    const conSezione = stato.sezione.attiva ? ' · con piano di sezione' : '';
+
     if (scheda === 'ortogonali') {
-      const opzioni = Object.assign({}, stato.opzioni, { posizione: stato.posizione });
       if (vistaSingolaAttiva) opzioni.vistaSingola = stato.vistaSingola;
-      didascalia.textContent = 'Proiezioni ortogonali — metodo europeo (primo diedro) · ' + solido.nome;
+      didascalia.textContent = 'Proiezioni ortogonali — metodo europeo (primo diedro) · ' + solido.nome + conSezione;
       Disegno.disegnaProiezioniOrtogonali(svg, solido, opzioni);
-    } else if (scheda === 'assonometria') {
+    } else if (scheda === 'assonometria' || scheda === 'sezioni') {
       const vista = vistaAssonometrica();
       const etichetta = vista.tipo === 'libera' ? 'rotazione libera' : 'assonometria ' + vista.tipo;
-      didascalia.textContent = 'Assonometria (' + etichetta + ') · ' + solido.nome;
-      Disegno.disegnaAssonometria(svg, solido, vista, stato.opzioni);
+      didascalia.textContent = scheda === 'sezioni'
+        ? 'Sezione in assonometria · ' + solido.nome
+        : 'Assonometria (' + etichetta + ') · ' + solido.nome + conSezione;
+      Disegno.disegnaAssonometria(svg, solido, vista, opzioni);
     } else if (scheda === 'prospettiva') {
       const vista = vistaProspettica();
-      const opzioni = Object.assign({}, stato.opzioni, {
-        posizione: stato.posizione,
-        alfa: alfaCorrente()
-      });
-      didascalia.textContent = 'Prospettiva ' + stato.prospettiva.tipo + ' · ' + solido.nome;
+      opzioni.alfa = alfaCorrente();
+      didascalia.textContent = 'Prospettiva ' + stato.prospettiva.tipo + ' · ' + solido.nome + conSezione;
       Disegno.disegnaProspettiva(svg, solido, vista, opzioni);
     }
   }

@@ -74,8 +74,8 @@ const Solidi = (function () {
       const idxForoF = [], idxForoB = [];
       foro.forEach(p => { idxForoF.push(vertici.length); vertici.push([p[0], 0, p[1]]); });
       foro.forEach(p => { idxForoB.push(vertici.length); vertici.push([p[0], profondita, p[1]]); });
-      const anelloF = anelloAttorno(profilo.map(F), idxForoF, vertici, 0);
-      const anelloB = anelloAttorno(profilo.map(B), idxForoB, vertici, profondita);
+      const anelloF = anelloAttorno(profilo.map((_, i) => F(i)), idxForoF, vertici, 0);
+      const anelloB = anelloAttorno(profilo.map((_, i) => B(i)), idxForoB, vertici, profondita);
       anelloF.forEach(f => facce.push(f));
       anelloB.forEach(f => facce.push(f.slice().reverse()));
       // pareti interne del foro (normali rivolte verso l'interno del foro)
