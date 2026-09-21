@@ -130,14 +130,21 @@ const Disegno = (function () {
   // allontanato dal piano verticale e dal piano laterale. Così le tre viste
   // si dispongono da sole rispetto alla linea di terra e alla sua verticale,
   // alle distanze reali, come nella costruzione di Monge.
-  function collocaNelTriedro(solido) {
-    if (solido._collocato) return solido._collocato;
-    const b = limiti(solido);
-    const dimensione = Math.max(b.x1 - b.x0, b.y1 - b.y0, b.z1 - b.z0);
-    const distacco = dimensione * 0.45;
-    const dx = -distacco - b.x1;  // a sinistra del piano laterale
-    const dy = distacco - b.y0;   // davanti al piano verticale
-    const dz = -b.z0;             // appoggiato al piano orizzontale
+  function collocaNelTriedro(solido, posizione) {
+    const b0 = limiti(solido);
+    const dimensione = Math.max(b0.x1 - b0.x0, b0.y1 - b0.y0, b0.z1 - b0.z0);
+    const p = posizione || {};
+    const allontanamento = p.allontanamento === undefined ? dimensione * 0.45 : p.allontanamento;
+    const distanzaPL = p.distanzaPL === undefined ? dimensione * 0.45 : p.distanzaPL;
+    const quota = p.quota === undefined ? 0 : p.quota;
+
+    const chiave = allontanamento + '/' + distanzaPL + '/' + quota;
+    if (solido._collocato && solido._collocato.chiave === chiave) return solido._collocato.solido;
+
+    const b = b0;
+    const dx = -distanzaPL - b.x1;      // a sinistra del piano laterale
+    const dy = allontanamento - b.y0;   // davanti al piano verticale
+    const dz = quota - b.z0;            // appoggiato al P.O. o sollevato di "quota"
     const collocato = {
       id: solido.id,
       nome: solido.nome,
@@ -145,7 +152,7 @@ const Disegno = (function () {
       vertici: solido.vertici.map(v => [v[0] + dx, v[1] + dy, v[2] + dz]),
       facce: solido.facce
     };
-    solido._collocato = collocato;
+    solido._collocato = { chiave: chiave, solido: collocato };
     return collocato;
   }
 
@@ -239,7 +246,7 @@ const Disegno = (function () {
   }
 
   function disegnaProiezioniOrtogonali(svg, solidoOriginale, opzioni) {
-    const solido = collocaNelTriedro(solidoOriginale);
+    const solido = collocaNelTriedro(solidoOriginale, opzioni.posizione);
     const b = limiti(solido);
     const dimensione = Math.max(b.x1 - b.x0, b.y1 - b.y0, b.z1 - b.z0);
     const dimTesto = dimensione * 0.1;

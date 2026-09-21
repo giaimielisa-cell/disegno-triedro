@@ -12,6 +12,7 @@ const Esploratore = (function () {
     confronto: false,
     mostraNelloStretto: 'a',
     vistaSingola: 'prospetto',
+    posizione: { allontanamento: 30, quota: 0, distanzaPL: 30 },
     opzioni: {
       spigoliNascosti: true,
       etichette: false,
@@ -100,6 +101,16 @@ const Esploratore = (function () {
     collega('opz-griglia', 'griglia');
     collega('opz-richiami', 'richiami');
     collega('opz-piani', 'piani');
+
+    ['allontanamento', 'quota', 'distanzaPL'].forEach(nome => {
+      const cursore = document.getElementById('pos-' + nome);
+      const valore = document.getElementById('val-' + nome);
+      cursore.addEventListener('input', () => {
+        stato.posizione[nome] = Number(cursore.value);
+        valore.textContent = cursore.value;
+        aggiorna();
+      });
+    });
 
     document.getElementById('opz-ombreggiato').addEventListener('change', e => {
       stato.opzioni.resa = e.target.checked ? 'ombreggiato' : 'wireframe';
@@ -230,9 +241,8 @@ const Esploratore = (function () {
   function disegnaRiquadro(tela, svg, didascalia, scheda, solido, vistaSingolaAttiva) {
     tela.classList.toggle('trascinabile', scheda === 'assonometria');
     if (scheda === 'ortogonali') {
-      const opzioni = vistaSingolaAttiva
-        ? Object.assign({}, stato.opzioni, { vistaSingola: stato.vistaSingola })
-        : stato.opzioni;
+      const opzioni = Object.assign({}, stato.opzioni, { posizione: stato.posizione });
+      if (vistaSingolaAttiva) opzioni.vistaSingola = stato.vistaSingola;
       didascalia.textContent = 'Proiezioni ortogonali — metodo europeo (primo diedro) · ' + solido.nome;
       Disegno.disegnaProiezioniOrtogonali(svg, solido, opzioni);
     } else if (scheda === 'assonometria') {

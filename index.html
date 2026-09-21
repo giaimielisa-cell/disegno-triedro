@@ -96,6 +96,19 @@
           <legend>Proiezioni ortogonali</legend>
           <label class="interruttore"><input type="checkbox" id="opz-richiami" checked><span>Linee di richiamo e ribaltamento</span></label>
           <label class="interruttore"><input type="checkbox" id="opz-piani"><span>Piani di proiezione</span></label>
+
+          <div class="cursore">
+            <label for="pos-allontanamento">Allontanamento dal P.V. <output id="val-allontanamento">30</output></label>
+            <input type="range" id="pos-allontanamento" min="0" max="100" step="1" value="30">
+          </div>
+          <div class="cursore">
+            <label for="pos-quota">Quota sul P.O. <output id="val-quota">0</output></label>
+            <input type="range" id="pos-quota" min="0" max="80" step="1" value="0">
+          </div>
+          <div class="cursore">
+            <label for="pos-distanzaPL">Distanza dal P.L. <output id="val-distanzaPL">30</output></label>
+            <input type="range" id="pos-distanzaPL" min="0" max="100" step="1" value="30">
+          </div>
         </fieldset>
 
         <fieldset data-scheda="assonometria">

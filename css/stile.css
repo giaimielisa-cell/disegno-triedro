@@ -220,6 +220,11 @@ text { font-family: "Segoe UI", system-ui, sans-serif; }
 .pannello legend { font-weight: 700; font-size: 0.9rem; padding: 0 6px 0 0; }
 .pannello fieldset[hidden] { display: none; }
 
+.cursore { margin: 10px 0 6px; }
+.cursore label { display: flex; justify-content: space-between; font-size: 0.88rem; gap: 8px; }
+.cursore output { font-family: "Consolas", monospace; color: var(--blu); font-weight: 700; }
+.cursore input[type="range"] { width: 100%; accent-color: var(--blu); height: 28px; }
+
 .pulsanti-tipo { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 10px; }
 .pulsanti-tipo button {
   font: inherit;
