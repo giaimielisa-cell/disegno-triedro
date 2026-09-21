@@ -317,9 +317,31 @@ const Palestra = (function () {
     };
   }
 
+  // Solidi dichiarati con le loro misure: senza un termine di paragone noto
+  // non si potrebbe giudicare se una rappresentazione è corretta.
+  function solidoNominato() {
+    const lato = scegli([40, 45, 50]);
+    const scelte = [
+      { nome: 'un cubo di spigolo ' + lato, crea: () => Solidi.cubo(lato) },
+      { nome: 'un cubo di spigolo ' + lato, crea: () => Solidi.cubo(lato) },
+      {
+        nome: 'un parallelepipedo di ' + (lato + 20) + ' × ' + lato + ' × ' + (lato + 10) +
+          ' (larghezza, profondità, altezza)',
+        crea: () => Solidi.prismaRettangolare(lato + 20, lato, lato + 10)
+      },
+      {
+        nome: 'un prisma a base quadrata di lato ' + lato + ' e altezza ' + (lato + 25),
+        crea: () => Solidi.prismaRettangolare(lato, lato, lato + 25)
+      }
+    ];
+    const s = scegli(scelte);
+    return { nome: s.nome, solido: s.crea() };
+  }
+
   // 2. Riconoscere i coefficienti di riduzione corretti
   function generaCoefficienti() {
-    const solido = solidoPerAssonometria();
+    const nominato = solidoNominato();
+    const solido = nominato.solido;
     const tipo = scegli(['cavaliera', 'monometrica', 'isometrica']);
     const base = Geo.TIPI_ASSONOMETRIA[tipo];
     const sbagliati = [
@@ -334,7 +356,7 @@ const Palestra = (function () {
       argomento: 'assonometria',
       tipo: 'coefficienti',
       forma: 'scelta',
-      domanda: 'Le quattro immagini rappresentano lo stesso solido in assonometria ' +
+      domanda: 'Le quattro immagini rappresentano ' + nominato.nome + ' in assonometria ' +
         NOMI_ASSONOMETRIA[tipo].toLowerCase() +
         ', ma una sola usa i coefficienti di riduzione corretti. Quale?',
       disegnaDomanda: null,
@@ -384,7 +406,8 @@ const Palestra = (function () {
   };
 
   function generaErroreCostruzione() {
-    const solido = solidoPerAssonometria();
+    const nominato = solidoNominato();
+    const solido = nominato.solido;
     const tipo = scegli(['isometrica', 'cavaliera', 'monometrica']);
     const base = Geo.TIPI_ASSONOMETRIA[tipo];
     const corretta = { errore: null, vista: Geo.vistaAssonometricaDiretta(base) };
@@ -403,8 +426,9 @@ const Palestra = (function () {
       argomento: 'assonometria',
       tipo: 'errore-costruzione',
       forma: 'scelta',
-      domanda: 'Queste quattro rappresentazioni in assonometria ' + NOMI_ASSONOMETRIA[tipo].toLowerCase() +
-        ' dovrebbero essere identiche, ma tre contengono un errore di costruzione. Qual è l\'unica corretta?',
+      domanda: 'Le quattro immagini rappresentano ' + nominato.nome + ' in assonometria ' +
+        NOMI_ASSONOMETRIA[tipo].toLowerCase() +
+        ', ma tre contengono un errore di costruzione. Qual è l\'unica corretta?',
       disegnaDomanda: null,
       opzioni: opzioni.map(o => ({
         dato: o,

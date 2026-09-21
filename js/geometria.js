@@ -291,8 +291,9 @@ const Geo = (function () {
     },
     monometrica: {
       nomeTipo: 'monometrica', etichetta: 'Monometrica',
-      angoloX: 187, angoloY: 318, angoloZ: 90, kx: 1, ky: 0.5, kz: 1,
-      nota: 'Assi a 7° e 42° sull\'orizzontale: larghezza e altezza in vera misura, profondità ridotta a metà.'
+      angoloX: 210, angoloY: 300, angoloZ: 90, kx: 1, ky: 1, kz: 1,
+      nota: 'Angoli fra gli assi: 90° fra x e y, 120° fra x e z, 150° fra y e z. ' +
+        'Con x e y ad angolo retto la pianta resta in vera forma e le altezze si riportano verticali.'
     }
   };
 
