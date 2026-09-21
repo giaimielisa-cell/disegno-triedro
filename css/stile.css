@@ -395,6 +395,25 @@ text { font-family: "Segoe UI", system-ui, sans-serif; }
 .carta-opzione[disabled] { cursor: default; }
 .carta-opzione.giusta { border-color: #1e7a41; background: #f0f8f2; }
 .carta-opzione.sbagliata { border-color: var(--evidenza); background: #fdf1ec; }
+.quadro {
+  stroke: var(--inchiostro);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+.pianta-oggetto {
+  fill: var(--blu-chiaro);
+  fill-opacity: 0.5;
+  stroke: var(--inchiostro);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+.etichetta-schema { fill: var(--inchiostro-tenue); }
+/* serve solo a fissare l'inquadratura, non deve vedersi */
+.cornice-invisibile { stroke: none; }
+
+.opzione-testo { align-items: center; justify-content: center; height: auto; min-height: 96px; padding: 18px 12px; }
+.testo-opzione { font-size: 1rem; text-align: center; line-height: 1.35; }
+
 .lettera-opzione {
   position: absolute; top: 6px; left: 10px;
   font-weight: 700; color: var(--inchiostro-tenue);
@@ -402,6 +421,9 @@ text { font-family: "Segoe UI", system-ui, sans-serif; }
 .disegno-opzione { flex: 1; width: 100%; height: 100%; }
 
 .opzioni.abbinamento { grid-template-columns: repeat(3, 1fr); }
+/* alternative larghe e basse (linee d'orizzonte): una per riga */
+.opzioni.in-colonna { grid-template-columns: 1fr; gap: 8px; }
+.opzioni.in-colonna .carta-opzione { height: min(11vh, 92px); padding: 6px 8px 6px 28px; }
 .carta-abbinamento {
   position: relative;
   background: var(--carta-chiara);

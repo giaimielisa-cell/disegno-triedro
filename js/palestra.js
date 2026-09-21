@@ -641,17 +641,295 @@ const Palestra = (function () {
     return null;
   }
 
+  // --- Disegno libero in due dimensioni (schemi e piante prospettiche) ---
+
+  function tela(svg) {
+    const NS = 'http://www.w3.org/2000/svg';
+    const g = document.createElementNS(NS, 'g');
+    const punti = [];
+    const crea = (nome, attributi) => {
+      const e = document.createElementNS(NS, nome);
+      for (const k in attributi) e.setAttribute(k, attributi[k]);
+      g.appendChild(e);
+      return e;
+    };
+    const segna = (x, y) => punti.push([x, y]);
+    return {
+      linea(x1, y1, x2, y2, classe) {
+        segna(x1, y1); segna(x2, y2);
+        return crea('line', { x1: x1, y1: y1, x2: x2, y2: y2, class: classe });
+      },
+      poligono(lista, classe) {
+        lista.forEach(p => segna(p[0], p[1]));
+        return crea('polygon', { points: lista.map(p => p[0].toFixed(2) + ',' + p[1].toFixed(2)).join(' '), class: classe });
+      },
+      punto(x, y, raggio, classe) {
+        segna(x - raggio, y - raggio); segna(x + raggio, y + raggio);
+        return crea('circle', { cx: x, cy: y, r: raggio, class: classe });
+      },
+      testo(x, y, contenuto, classe, dimensione) {
+        segna(x, y);
+        const t = crea('text', { x: x, y: y, class: classe, 'font-size': dimensione });
+        t.textContent = contenuto;
+        return t;
+      },
+      chiudi(margine) {
+        svg.appendChild(g);
+        const xs = punti.map(p => p[0]), ys = punti.map(p => p[1]);
+        const x0 = Math.min(...xs) - margine, x1 = Math.max(...xs) + margine;
+        const y0 = Math.min(...ys) - margine, y1 = Math.max(...ys) + margine;
+        svg.setAttribute('viewBox', [x0, y0, Math.max(x1 - x0, 1), Math.max(y1 - y0, 1)].join(' '));
+        svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+      }
+    };
+  }
+
+  // --- Esercizi sulla prospettiva ---
+
+  // Pianta della scena prospettica: quadro, punto di vista e oggetto ruotato.
+  // Sul foglio la profondità cresce verso l'alto, come nelle tavole.
+  function disegnaPiantaScena(svg, scena, costruzione, estensione) {
+    const t = tela(svg);
+    const dim = Math.max(scena.larghezza, scena.profondita);
+    const testo = dim * 0.22;
+    const semiQuadro = dim * 2.2;
+
+    // quadro
+    t.linea(-semiQuadro, 0, semiQuadro, 0, 'quadro');
+    t.testo(-semiQuadro, -testo * 0.4, 'quadro', 'etichetta-schema', testo);
+
+    // oggetto ruotato, dietro il quadro (in alto)
+    const a = Geo.deg2rad(scena.alfa);
+    const centro = [scena.x, -(scena.distanzaOggetto + scena.profondita / 2)];
+    const u = [Math.cos(a), -Math.sin(a)], w = [Math.sin(a), Math.cos(a)];
+    const angoli = [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(s => [
+      centro[0] + u[0] * s[0] * scena.larghezza / 2 + w[0] * s[1] * scena.profondita / 2,
+      centro[1] + u[1] * s[0] * scena.larghezza / 2 + w[1] * s[1] * scena.profondita / 2
+    ]);
+    t.poligono(angoli, 'pianta-oggetto');
+
+    // punto di vista, davanti al quadro (in basso)
+    const pv = [scena.xOsservatore, scena.distanza];
+    t.punto(pv[0], pv[1], dim * 0.05, 'punto-vista');
+    t.testo(pv[0] + dim * 0.1, pv[1] + testo, 'P.V.', 'etichetta-punto', testo);
+    t.linea(pv[0], pv[1], pv[0], 0, 'richiamo');
+    t.punto(pv[0], 0, dim * 0.035, 'punto-vista');
+    t.testo(pv[0] + dim * 0.1, -testo * 0.4, 'P.P.', 'etichetta-punto', testo);
+
+    // nel riscontro si mostra da dove nascono i punti di fuga: dal punto di
+    // vista si conducono le parallele alle due direzioni dell'oggetto
+    if (costruzione) {
+      [{ d: u, nome: 'F₁' }, { d: w, nome: 'F₂' }].forEach(direzione => {
+        const dir = direzione.d;
+        if (Math.abs(dir[1]) < 1e-6) return;
+        const k = -pv[1] / dir[1];
+        const incontro = [pv[0] + dir[0] * k, 0];
+        t.linea(pv[0], pv[1], incontro[0], incontro[1], 'linea-fuga');
+        t.punto(incontro[0], 0, dim * 0.05, 'punto-fuga');
+        t.testo(incontro[0] + dim * 0.08, -testo * 0.5, direzione.nome, 'etichetta-punto', testo);
+      });
+    }
+    if (estensione) {
+      // stessa scala per tutte le piante di una domanda: altrimenti un punto
+      // di vista più lontano verrebbe rimpicciolito e sembrerebbe uguale
+      t.linea(-estensione, -estensione, -estensione, estensione, 'cornice-invisibile');
+      t.linea(estensione, -estensione, estensione, estensione, 'cornice-invisibile');
+    }
+    t.chiudi(dim * 0.25);
+  }
+
+  // Linea d'orizzonte con i due punti di fuga proposti.
+  function disegnaOrizzonteConFughe(svg, fughe, estensione) {
+    const t = tela(svg);
+    const testo = estensione * 0.09;
+    t.linea(-estensione, 0, estensione, 0, 'linea-orizzonte');
+    t.punto(0, 0, estensione * 0.022, 'punto-vista');
+    t.testo(testo * 0.3, testo * 1.3, 'P.P.', 'etichetta-punto', testo);
+    [{ x: fughe[0], nome: 'F₁' }, { x: fughe[1], nome: 'F₂' }].forEach(f => {
+      t.punto(f.x, 0, estensione * 0.03, 'punto-fuga');
+      t.testo(f.x + testo * 0.3, -testo * 0.6, f.nome, 'etichetta-punto', testo);
+    });
+    t.chiudi(estensione * 0.08);
+  }
+
+  function scenaCasuale() {
+    return {
+      alfa: scegli([30, 35, 40, 50, 55, 60]),
+      distanza: intero(120, 180),
+      distanzaOggetto: intero(15, 35),
+      larghezza: intero(50, 70),
+      profondita: intero(40, 60),
+      x: 0,
+      xOsservatore: 0
+    };
+  }
+
+  // 1. Costruzione dei punti di fuga
+  function generaPuntiDiFuga() {
+    const scena = scenaCasuale();
+    const a = Geo.deg2rad(scena.alfa);
+    const d = scena.distanza;
+    const corretti = [d / Math.tan(a), -d * Math.tan(a)];
+
+    const alternative = [
+      { fughe: [-d / Math.tan(a), d * Math.tan(a)], perche: 'i due punti sono scambiati di lato' },
+      { fughe: [d * Math.tan(a), -d / Math.tan(a)], perche: 'le due direzioni dell\'oggetto sono state scambiate fra loro' },
+      { fughe: [d, -d], perche: 'varrebbe solo se l\'oggetto fosse ruotato di 45°' },
+      { fughe: [d / (2 * Math.tan(a)), -d * Math.tan(a) / 2], perche: 'la distanza del punto di vista è stata dimezzata' }
+    ];
+    const scelti = mescola(alternative).slice(0, 3);
+    const opzioni = mescola([{ fughe: corretti, perche: null }].concat(scelti));
+    const indiceCorretto = opzioni.findIndex(o => o.perche === null);
+    const estensione = Math.max.apply(null,
+      opzioni.map(o => Math.max(Math.abs(o.fughe[0]), Math.abs(o.fughe[1])))) * 1.15;
+
+    return {
+      argomento: 'prospettiva',
+      tipo: 'punti-di-fuga',
+      forma: 'scelta',
+      disposizioneOpzioni: 'colonna',
+      domanda: 'La pianta mostra il quadro, il punto di vista e l\'oggetto ruotato di ' + scena.alfa +
+        '°. Quale delle quattro alternative dà la posizione corretta dei punti di fuga sulla linea d\'orizzonte?',
+      disegnaDomanda: contenitore => {
+        disegnaPiantaScena(pannello(contenitore, 'Pianta: quadro, punto di vista e oggetto'), scena, false);
+      },
+      opzioni: opzioni.map(o => ({
+        dato: o,
+        disegna: svg => disegnaOrizzonteConFughe(svg, o.fughe, estensione)
+      })),
+      indiceCorretto: indiceCorretto,
+      riscontro: (indiceScelto, giusta) => {
+        const regola = 'Dal punto di vista si conducono le parallele alle due direzioni dell\'oggetto: ' +
+          'dove incontrano il quadro stanno i punti di fuga. Con l\'oggetto ruotato di ' + scena.alfa +
+          '° distano dal P.P. ' + Math.round(Math.abs(corretti[0])) + ' e ' + Math.round(Math.abs(corretti[1])) +
+          ', da parti opposte.';
+        if (giusta) return regola;
+        return 'In quella che hai scelto ' + opzioni[indiceScelto].perche + '. ' + regola;
+      },
+      // il riscontro ridisegna la pianta con la costruzione
+      riscontroDomanda: contenitore => {
+        disegnaPiantaScena(pannello(contenitore, 'Costruzione: le parallele condotte dal punto di vista'), scena, true);
+      }
+    };
+  }
+
+  // 2. Effetto dei parametri
+  function generaEffettoParametri() {
+    const solido = Solidi.prismaRettangolare(intero(50, 70), intero(35, 50), intero(45, 65));
+    const base = { distanza: 150, altezza: 45, alfa: 40, x: 0 };
+    const cambi = [
+      { chiave: 'altezza', valore: base.altezza + scegli([-35, 55]), etichetta: 'l\'altezza della linea d\'orizzonte' },
+      { chiave: 'distanza', valore: base.distanza + scegli([-70, 130]), etichetta: 'la distanza del punto di vista' },
+      { chiave: 'alfa', valore: base.alfa + scegli([-25, 30]), etichetta: 'la rotazione dell\'oggetto' }
+    ];
+    const cambio = scegli(cambi);
+    const modificata = Object.assign({}, base, { [cambio.chiave]: cambio.valore });
+
+    const etichette = cambi.map(c => c.etichetta).concat(['la posizione laterale dell\'osservatore']);
+    const opzioni = mescola(etichette.map(e => ({ etichetta: e })));
+    const indiceCorretto = opzioni.findIndex(o => o.etichetta === cambio.etichetta);
+
+    const disegna = (svg, config, riquadro) => Disegno.disegnaProspettiva(svg, solido,
+      Geo.vistaProspettica({ x: config.x, distanza: config.distanza, altezza: config.altezza }),
+      Object.assign({}, OPZIONI_ASSONOMETRIA, {
+        alfa: config.alfa, posizione: { allontanamento: 30, quota: 0 },
+        lineeDiFuga: false, inquadraFughe: false, mostraPunti: false,
+        riquadroForzato: riquadro
+      }));
+
+    // le due immagini vanno confrontate, quindi devono avere la stessa
+    // inquadratura: con scale diverse non si capirebbe che cosa è cambiato
+    function inquadraturaComune(contenitore) {
+      const provvisorio = nuovoSvg(contenitore, 'disegno-domanda');
+      const a = disegna(provvisorio, base);
+      const b = disegna(provvisorio, modificata);
+      contenitore.removeChild(provvisorio);
+      return {
+        x0: Math.min(a.x0, b.x0), x1: Math.max(a.x1, b.x1),
+        y0: Math.min(a.y0, b.y0), y1: Math.max(a.y1, b.y1)
+      };
+    }
+
+    return {
+      argomento: 'prospettiva',
+      tipo: 'effetto-parametri',
+      forma: 'scelta',
+      domanda: 'Le due immagini rappresentano lo stesso solido: fra la prima e la seconda è cambiato un solo parametro. Quale?',
+      disegnaDomanda: contenitore => {
+        const riquadro = inquadraturaComune(contenitore);
+        disegna(pannello(contenitore, 'Prima'), base, riquadro);
+        disegna(pannello(contenitore, 'Dopo'), modificata, riquadro);
+      },
+      opzioni: opzioni.map(o => ({ dato: o, etichetta: o.etichetta })),
+      indiceCorretto: indiceCorretto,
+      riscontro: (indiceScelto, giusta) => {
+        const spiegazioni = {
+          altezza: 'Alzando l\'occhio la linea d\'orizzonte sale rispetto al solido e si scopre di più la faccia superiore.',
+          distanza: 'Allontanando l\'osservatore i punti di fuga si allontanano e lo scorcio si attenua.',
+          alfa: 'Ruotando l\'oggetto cambiano gli angoli degli spigoli di base, mentre l\'orizzonte resta dov\'è.'
+        };
+        return spiegazioni[cambio.chiave];
+      }
+    };
+  }
+
+  // 3. Dalla prospettiva alla pianta
+  function generaProspettivaAllaPianta() {
+    const solido = Solidi.prismaRettangolare(60, 45, 55);
+    const scena = scenaCasuale();
+    scena.xOsservatore = 0;
+    const alternative = mescola([
+      { alfa: scena.alfa + scegli([25, -25]) },
+      { distanza: Math.round(scena.distanza * scegli([0.55, 1.7])) },
+      { xOsservatore: scegli([-45, 45]), x: 0 },
+      { alfa: 90 - scena.alfa }
+    ]).slice(0, 3).map(m => Object.assign({}, scena, m));
+    const opzioni = mescola([scena].concat(alternative));
+    const indiceCorretto = opzioni.indexOf(scena);
+    const estensione = Math.max.apply(null, opzioni.map(o =>
+      Math.max(o.distanza, o.distanzaOggetto + o.profondita, Math.abs(o.xOsservatore) + o.larghezza))) * 1.2;
+
+    return {
+      argomento: 'prospettiva',
+      tipo: 'prospettiva-alla-pianta',
+      forma: 'scelta',
+      domanda: 'Questa è l\'immagine prospettica di un parallelepipedo. Quale delle quattro piante rappresenta la configurazione di punto di vista e oggetto che l\'ha generata?',
+      disegnaDomanda: contenitore => {
+        const svg = pannello(contenitore, 'Immagine prospettica');
+        Disegno.disegnaProspettiva(svg, solido,
+          Geo.vistaProspettica({ x: 0, distanza: scena.distanza, altezza: 45 }),
+          Object.assign({}, OPZIONI_ASSONOMETRIA, {
+            alfa: scena.alfa, posizione: { allontanamento: scena.distanzaOggetto, quota: 0 },
+            lineeDiFuga: true, inquadraFughe: false
+          }));
+      },
+      opzioni: opzioni.map(o => ({
+        dato: o,
+        disegna: svg => disegnaPiantaScena(svg, o, false, estensione)
+      })),
+      indiceCorretto: indiceCorretto,
+      riscontro: (indiceScelto, giusta) => {
+        if (giusta) return 'L\'angolo di rotazione decide quanto scorciano le due facce, la distanza del punto di vista quanto è marcata la fuga.';
+        const scelta = opzioni[indiceScelto];
+        if (scelta.alfa !== scena.alfa) return 'In quella pianta l\'oggetto è ruotato di ' + scelta.alfa + '° invece che di ' + scena.alfa + '°: le due facce scorcerebbero in modo diverso.';
+        if (scelta.distanza !== scena.distanza) return 'In quella pianta il punto di vista è a distanza diversa dal quadro: la fuga risulterebbe più (o meno) marcata.';
+        return 'In quella pianta l\'osservatore è spostato di lato: il punto principale non cadrebbe al centro dell\'immagine.';
+      }
+    };
+  }
+
   // --- Registro dei generatori ---
 
   const GENERATORI = {
     ortogonali: [generaEsercizioOrtogonali],
     assonometria: [generaTipoAssonometria, generaCoefficienti, generaErroreCostruzione],
-    sezioni: [generaRiconoscimentoSezione]
+    sezioni: [generaRiconoscimentoSezione],
+    prospettiva: [generaPuntiDiFuga, generaEffettoParametri, generaProspettivaAllaPianta]
   };
 
   function generatoriAttivi() {
     if (stato.argomento === 'misto') {
-      return GENERATORI.ortogonali.concat(GENERATORI.assonometria, GENERATORI.sezioni);
+      return GENERATORI.ortogonali.concat(GENERATORI.assonometria, GENERATORI.sezioni, GENERATORI.prospettiva);
     }
     return GENERATORI[stato.argomento] || GENERATORI.ortogonali;
   }
@@ -681,7 +959,9 @@ const Palestra = (function () {
     if (esercizio.disegnaDomanda) esercizio.disegnaDomanda(el.riquadroDomanda);
 
     el.opzioni.innerHTML = '';
-    el.opzioni.className = esercizio.forma === 'abbinamento' ? 'opzioni abbinamento' : 'opzioni';
+    el.opzioni.className = 'opzioni' +
+      (esercizio.forma === 'abbinamento' ? ' abbinamento' : '') +
+      (esercizio.disposizioneOpzioni === 'colonna' ? ' in-colonna' : '');
     if (esercizio.forma === 'abbinamento') costruisciAbbinamento(esercizio);
     else costruisciScelta(esercizio);
   }
@@ -696,7 +976,15 @@ const Palestra = (function () {
       etichetta.className = 'lettera-opzione';
       etichetta.textContent = 'ABCD'[indice];
       carta.appendChild(etichetta);
-      opzione.disegna(nuovoSvg(carta, 'disegno-opzione'), false);
+      if (opzione.disegna) {
+        opzione.disegna(nuovoSvg(carta, 'disegno-opzione'), false);
+      } else {
+        carta.classList.add('opzione-testo');
+        const testo = document.createElement('span');
+        testo.className = 'testo-opzione';
+        testo.textContent = opzione.etichetta;
+        carta.appendChild(testo);
+      }
       carta.addEventListener('click', () => rispondi(indice));
       el.opzioni.appendChild(carta);
     });
@@ -748,8 +1036,14 @@ const Palestra = (function () {
       else if (i === indice) carta.classList.add('sbagliata');
       // il riscontro ridisegna l'opzione mostrando assi, angoli e coefficienti
       const svg = carta.querySelector('svg');
-      esercizio.opzioni[i].disegna(svg, true);
+      if (svg && esercizio.opzioni[i].disegna) esercizio.opzioni[i].disegna(svg, true);
     });
+
+    // alcune domande mostrano nel riscontro la costruzione che dà la risposta
+    if (esercizio.riscontroDomanda) {
+      el.riquadroDomanda.innerHTML = '';
+      esercizio.riscontroDomanda(el.riquadroDomanda);
+    }
 
     concludi(giusta, giusta
       ? 'Giusto. ' + esercizio.riscontro(indice, true)

@@ -635,11 +635,11 @@ const Disegno = (function () {
     // L'inquadratura comprende il solido, la linea di terra e l'orizzonte;
     // solo su richiesta si allarga fino ai punti di fuga, che possono cadere
     // molto lontano e rimpicciolire troppo il disegno.
-    const riquadro = {
+    const riquadro = opzioni.riquadroForzato ? Object.assign({}, opzioni.riquadroForzato) : {
       x0: estremi.x0, x1: estremi.x1,
       y0: Math.min(estremi.y0, yOrizzonte), y1: Math.max(estremi.y1, 0)
     };
-    if (opzioni.inquadraFughe) {
+    if (opzioni.inquadraFughe && !opzioni.riquadroForzato) {
       fughe.filter(f => !f.coincidePP).forEach(f => {
         riquadro.x0 = Math.min(riquadro.x0, f.p[0]);
         riquadro.x1 = Math.max(riquadro.x1, f.p[0]);
@@ -678,19 +678,26 @@ const Disegno = (function () {
     g.appendChild(gv);
 
     // punto principale e punti di fuga, con l'area di presa per il dito
-    puntoTrascinabile(g, [vista.x, yOrizzonte], 'P.P.', 'punto-vista', dimTesto, 'punto-principale');
-    fughe.filter(f => !f.coincidePP)
-      .forEach(f => puntoTrascinabile(g, f.p, f.etichetta, 'punto-fuga', dimTesto, f.nome));
+    if (opzioni.mostraPunti !== false) {
+      puntoTrascinabile(g, [vista.x, yOrizzonte], 'P.P.', 'punto-vista', dimTesto, 'punto-principale');
+      fughe.filter(f => !f.coincidePP)
+        .forEach(f => puntoTrascinabile(g, f.p, f.etichetta, 'punto-fuga', dimTesto, f.nome));
+    }
 
     svg.appendChild(g);
 
-    const margine = dimTesto * 2.2;
+    // con l'inquadratura imposta il margine non può dipendere dal solido,
+    // altrimenti due immagini da confrontare risulterebbero a scale diverse
+    const margine = opzioni.riquadroForzato
+      ? (riquadro.x1 - riquadro.x0) * 0.06
+      : dimTesto * 2.2;
     svg.setAttribute('viewBox', [
       riquadro.x0 - margine, riquadro.y0 - margine,
       Math.max(riquadro.x1 - riquadro.x0 + 2 * margine, 1),
       Math.max(riquadro.y1 - riquadro.y0 + 2 * margine, 1)
     ].join(' '));
     svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+    return riquadro;
   }
 
   function puntiDiFuga(vista, alfaDeg) {
