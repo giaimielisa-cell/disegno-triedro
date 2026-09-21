@@ -21,9 +21,11 @@ const Sezione = (function () {
     orizzontale: () => [0, 0, 1],                        // parallelo al P.O.
     verticale: () => [0, -1, 0],                         // parallelo al P.V.
     profilo: () => [-1, 0, 0],                           // parallelo al P.L.
+    // perpendicolare al P.V. e inclinato sul P.O.: nel prospetto il piano si
+    // vede di taglio, ed è il caso classico degli esercizi
     inclinato: gradi => {
       const a = Geo.deg2rad(gradi);
-      return Geo.normalize([0, -Math.sin(a), Math.cos(a)]);
+      return Geo.normalize([Math.sin(a), 0, Math.cos(a)]);
     }
   };
 

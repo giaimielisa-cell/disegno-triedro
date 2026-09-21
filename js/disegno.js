@@ -139,6 +139,74 @@ const Disegno = (function () {
     return { larghezza: x1 - x0, altezza: y1 - y0 };
   }
 
+  // Tracce del piano di sezione α: tα' sul piano orizzontale, tα'' sul piano
+  // verticale. Sono le rette in cui il piano incontra i piani di proiezione e
+  // sulla linea di terra si incontrano fra loro.
+  function disegnaTracce(gruppo, solido, piano, dimensione, dimTesto) {
+    const n = Geo.normalize(piano.n);
+    const puntoSulPiano = Geo.scale(n, piano.d);
+    const collocato = solido.trasforma ? solido.trasforma(puntoSulPiano) : puntoSulPiano;
+    const d = Geo.dot(n, collocato);
+    const b = limiti(solido);
+    const lunghezza = Math.max(b.x1 - b.x0, b.y1 - b.y0, b.z1 - b.z0) * 1.3;
+    const g = el('g', { class: 'tracce-piano' });
+
+    function tracciaSu(assePiano, vista, riquadro, etichetta) {
+      // retta { dot(n,p) = d } ∩ { assePiano = 0 }
+      const versore = assePiano === 'z' ? [0, 0, 1] : [0, 1, 0];
+      const direzione = Geo.cross(n, versore);
+      if (Geo.length(direzione) < 1e-6) return;      // piano parallelo: nessuna traccia
+      const u = Geo.normalize(direzione);
+      const denominatore = Geo.dot(n, n) - Math.pow(Geo.dot(n, versore), 2);
+      if (Math.abs(denominatore) < 1e-9) return;
+      const componente = Geo.sub(n, Geo.scale(versore, Geo.dot(n, versore)));
+      const p0 = Geo.scale(componente, d / denominatore);
+      const pa = vista.project(Geo.add(p0, Geo.scale(u, -lunghezza)));
+      const pc = vista.project(Geo.add(p0, Geo.scale(u, lunghezza)));
+      // la traccia si traccia solo sulla vista che le compete
+      const tratto = ritagliaSegmento(pa, pc, riquadro);
+      if (!tratto) return;
+      g.appendChild(linea(tratto[0][0], tratto[0][1], tratto[1][0], tratto[1][1], 'traccia-piano'));
+      const estremo = tratto[0][1] < tratto[1][1] ? tratto[0] : tratto[1];  // il più in alto
+      const t = el('text', {
+        x: estremo[0] + dimTesto * 0.35, y: estremo[1] - dimTesto * 0.35,
+        class: 'etichetta-traccia', 'font-size': dimTesto
+      });
+      t.textContent = etichetta;
+      g.appendChild(t);
+    }
+
+    // ciascuna traccia resta nella fascia della propria vista e arriva fino
+    // alla linea di terra, dove le due si incontrano
+    const m = dimensione * 0.25;
+    const sinistra = b.x0 - dimensione, destra = b.y1 + dimensione;
+    tracciaSu('z', Geo.vistaOrtogonale('pianta'),
+      { x0: sinistra, x1: destra, y0: 0, y1: b.y1 + m }, 'tα′');
+    tracciaSu('y', Geo.vistaOrtogonale('prospetto'),
+      { x0: sinistra, x1: destra, y0: -b.z1 - m, y1: 0 }, 'tα″');
+    gruppo.appendChild(g);
+  }
+
+  // Ritaglio di un segmento su un rettangolo (algoritmo di Liang-Barsky).
+  function ritagliaSegmento(a, b, r) {
+    let t0 = 0, t1 = 1;
+    const dx = b[0] - a[0], dy = b[1] - a[1];
+    const prove = [[-dx, a[0] - r.x0], [dx, r.x1 - a[0]], [-dy, a[1] - r.y0], [dy, r.y1 - a[1]]];
+    for (const [p, q] of prove) {
+      if (Math.abs(p) < 1e-9) {
+        if (q < 0) return null;
+        continue;
+      }
+      const t = q / p;
+      if (p < 0) { if (t > t1) return null; if (t > t0) t0 = t; }
+      else { if (t < t0) return null; if (t < t1) t1 = t; }
+    }
+    return [
+      [a[0] + t0 * dx, a[1] + t0 * dy],
+      [a[0] + t1 * dx, a[1] + t1 * dy]
+    ];
+  }
+
   // Ribaltamento della sezione sul P.O. nelle proiezioni ortogonali: la figura
   // arriva in vera grandezza nella posizione che le assegna la costruzione,
   // legata alla pianta dalle rette perpendicolari alla traccia.
@@ -158,18 +226,6 @@ const Disegno = (function () {
 
     const pianta = Geo.vistaOrtogonale('pianta');
     const g = el('g', { class: 'ribaltamento-sezione' });
-
-    // la traccia del piano sul P.O., cerniera della rotazione
-    const estensione = dimensione * 1.4;
-    const a1 = Geo.add(r.cerniera.punto, Geo.scale(r.cerniera.direzione, -estensione));
-    const a2 = Geo.add(r.cerniera.punto, Geo.scale(r.cerniera.direzione, estensione));
-    const pa1 = pianta.project(a1), pa2 = pianta.project(a2);
-    g.appendChild(linea(pa1[0], pa1[1], pa2[0], pa2[1], 'traccia-piano'));
-    const t = el('text', {
-      x: pa2[0] + dimTesto * 0.3, y: pa2[1], class: 'nota-disegno', 'font-size': dimTesto * 0.9
-    });
-    t.textContent = 'traccia del piano (cerniera)';
-    g.appendChild(t);
 
     // La figura ribaltata viene allontanata lungo la stessa perpendicolare,
     // quanto basta perché non si sovrapponga alle viste: la costruzione non
@@ -206,8 +262,8 @@ const Disegno = (function () {
       class: 'titolo-vista', 'font-size': dimTesto, 'text-anchor': 'middle'
     });
     titolo.textContent = scostamento > 0
-      ? 'sezione ribaltata in vera forma (allontanata per chiarezza)'
-      : 'sezione ribaltata in vera forma';
+      ? 'sezione ribaltata attorno a tα′ (allontanata per chiarezza)'
+      : 'sezione ribaltata attorno a tα′';
     g.appendChild(titolo);
     gruppo.appendChild(g);
     return true;
@@ -464,9 +520,13 @@ const Disegno = (function () {
       }
       disegnaSpigoli(gv, solido, vista, [0, 0], opzioni);
       disegnaFiguraDiSezione(gv, solido.anelli, vista, [0, 0], dimensione);
+
       if (opzioni.etichette) disegnaEtichette(gv, solido, vista, [0, 0], dimTesto * 0.85);
       g.appendChild(gv);
       g.appendChild(titoloVista(vista, b, dimTesto, margine));
+    }
+    if (sezione.piano && !singola) {
+      disegnaTracce(g, solido, sezione.piano, dimensione, dimTesto);
     }
     if (solido.anelli && opzioni.sezione.veraForma && !singola) {
       // se il piano è parallelo a un piano di proiezione la sezione è già in
