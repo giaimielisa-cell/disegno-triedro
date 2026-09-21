@@ -324,6 +324,87 @@ text { font-family: "Segoe UI", system-ui, sans-serif; }
 
 .in-arrivo { margin: auto; text-align: center; color: var(--inchiostro-tenue); }
 
+/* --- Palestra --- */
+
+.gruppo-scelte { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.etichetta-gruppo { font-weight: 700; font-size: 0.9rem; margin-right: 4px; }
+.gruppo-scelte button {
+  font: inherit; font-size: 0.95rem;
+  padding: 10px 14px; min-height: 46px;
+  border: 1px solid var(--bordo); background: var(--carta);
+  border-radius: var(--raggio); cursor: pointer;
+}
+.gruppo-scelte button.attivo { background: var(--blu); color: #fff; border-color: var(--blu); }
+.gruppo-scelte button[disabled] { opacity: 0.45; cursor: not-allowed; }
+
+.tabellone {
+  display: flex; gap: 22px; flex-wrap: wrap;
+  padding: 10px 16px;
+  background: var(--carta-chiara);
+  border: 1px solid var(--bordo);
+  border-radius: var(--raggio);
+  font-size: 0.95rem;
+}
+.tabellone b { font-size: 1.25rem; color: var(--blu); margin-left: 6px; }
+
+.esercizio {
+  flex: 1; min-height: 0; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 12px;
+}
+.domanda { font-size: 1.1rem; font-weight: 600; margin: 4px 0; }
+
+.riquadro-domanda {
+  background: var(--carta-chiara);
+  border: 1px solid var(--bordo);
+  border-radius: var(--raggio);
+  padding: 8px;
+  height: min(30vh, 250px);
+  display: flex;
+}
+.disegno-domanda { flex: 1; width: 100%; height: 100%; }
+
+.opzioni { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.carta-opzione {
+  position: relative;
+  background: var(--carta-chiara);
+  border: 2px solid var(--bordo);
+  border-radius: var(--raggio);
+  padding: 8px;
+  cursor: pointer;
+  height: min(26vh, 210px);
+  display: flex;
+}
+.carta-opzione:hover:not([disabled]) { border-color: var(--blu); }
+.carta-opzione[disabled] { cursor: default; }
+.carta-opzione.giusta { border-color: #1e7a41; background: #f0f8f2; }
+.carta-opzione.sbagliata { border-color: var(--evidenza); background: #fdf1ec; }
+.lettera-opzione {
+  position: absolute; top: 6px; left: 10px;
+  font-weight: 700; color: var(--inchiostro-tenue);
+}
+.disegno-opzione { flex: 1; width: 100%; height: 100%; }
+
+.riscontro { min-height: 2.6em; font-size: 1rem; padding: 4px 2px; }
+.riscontro.esito-giusto { color: #1e7a41; font-weight: 600; }
+.riscontro.esito-sbagliato { color: var(--evidenza); font-weight: 600; }
+
+.pulsante-principale {
+  font: inherit; align-self: flex-start;
+  padding: 12px 24px; min-height: 48px;
+  background: var(--blu); color: #fff;
+  border: none; border-radius: var(--raggio); cursor: pointer;
+}
+
+.statistiche { font-size: 0.95rem; max-width: 420px; }
+.statistiche h3 { font-size: 0.95rem; margin: 10px 0 6px; color: var(--inchiostro-tenue); }
+.statistiche div { display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px solid var(--bordo); }
+
+@media (max-width: 860px) {
+  .opzioni { grid-template-columns: repeat(2, 1fr); }
+  .carta-opzione { height: 30vh; }
+  .riquadro-domanda { height: 34vh; }
+}
+
 /* --- Schermi stretti: l'impianto si riorganizza --- */
 
 @media (max-width: 860px) {

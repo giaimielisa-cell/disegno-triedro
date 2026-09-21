@@ -16,4 +16,5 @@
   });
 
   Esploratore.avvia();
+  Palestra.avvia();
 })();

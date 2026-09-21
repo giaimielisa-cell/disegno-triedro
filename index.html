@@ -183,9 +183,35 @@
   </section>
 
   <section id="sezione-palestra" hidden>
-    <div class="in-arrivo">
-      <h2>Palestra</h2>
-      <p>Gli esercizi a punteggio saranno costruiti nella Fase 4, dopo prospettiva e sezioni.</p>
+    <div class="riga-comandi">
+      <div class="gruppo-scelte">
+        <span class="etichetta-gruppo">Argomento</span>
+        <button type="button" class="attivo" data-argomento="ortogonali">Proiezioni ortogonali</button>
+        <button type="button" data-argomento="sezioni" disabled title="In arrivo">Sezioni</button>
+        <button type="button" data-argomento="prospettiva" disabled title="In arrivo">Prospettiva</button>
+        <button type="button" data-argomento="misto" disabled title="In arrivo">Misto</button>
+      </div>
+      <div class="gruppo-scelte">
+        <span class="etichetta-gruppo">Livello</span>
+        <button type="button" class="attivo" data-livello="facile">Facile</button>
+        <button type="button" data-livello="difficile">Difficile</button>
+      </div>
+    </div>
+
+    <div class="tabellone">
+      <span>Punteggio <b id="punteggio">0</b></span>
+      <span>Serie <b id="serie">0</b></span>
+      <span>Serie migliore <b id="migliore">0</b></span>
+      <span>Risposte <b id="risposte">0</b></span>
+    </div>
+
+    <div class="esercizio">
+      <p class="domanda" id="domanda"></p>
+      <div class="riquadro-domanda" id="riquadro-domanda"></div>
+      <div class="opzioni" id="opzioni"></div>
+      <div class="riscontro" id="riscontro"></div>
+      <button type="button" id="prossimo" class="pulsante-principale" hidden>Prossimo esercizio</button>
+      <div class="statistiche" id="statistiche"></div>
     </div>
   </section>
 </main>
@@ -195,6 +221,7 @@
 <script src="js/sezione.js"></script>
 <script src="js/disegno.js"></script>
 <script src="js/esploratore.js"></script>
+<script src="js/palestra.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

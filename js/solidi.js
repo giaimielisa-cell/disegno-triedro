@@ -343,5 +343,27 @@ const Solidi = (function () {
     };
   }
 
-  return { CATALOGO, ottieni, facceConvesse };
+  // Specchia il solido rispetto al piano x = 0. L'ordine dei vertici di ogni
+  // faccia va invertito, altrimenti le normali punterebbero verso l'interno.
+  function specchia(solido) {
+    return centra({
+      vertici: solido.vertici.map(v => [-v[0], v[1], v[2]]),
+      facce: solido.facce.map(f => f.slice().reverse())
+    });
+  }
+
+  function ruota(solido, gradi) {
+    const m = Geo.rotZ(Geo.deg2rad(gradi));
+    return centra({
+      vertici: solido.vertici.map(v => Geo.matVec(m, v)),
+      facce: solido.facce.map(f => f.slice())
+    });
+  }
+
+  return {
+    CATALOGO, ottieni, facceConvesse, specchia, ruota, centra,
+    prismaRegolare, prismaRettangolare, piramideRegolare, cilindro, cono,
+    troncoPiramide, troncoCono, tetraedro, cubo, ottaedro,
+    solidoL, solidoT, solidoGradini, solidoC, blocoConIncavo, bloccoConForo
+  };
 })();

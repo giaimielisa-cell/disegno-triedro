@@ -809,8 +809,45 @@ const Disegno = (function () {
 
   // --- Utilità ---
 
+  // Ingombro calcolato dalla geometria disegnata: serve quando il disegno è
+  // costruito mentre la sua sezione è ancora nascosta, caso in cui il browser
+  // non sa fornire le dimensioni.
+  function misuraGruppo(nodo, acc) {
+    acc = acc || { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity };
+    const punto = (x, y) => {
+      if (!isFinite(x) || !isFinite(y)) return;
+      acc.x0 = Math.min(acc.x0, x); acc.y0 = Math.min(acc.y0, y);
+      acc.x1 = Math.max(acc.x1, x); acc.y1 = Math.max(acc.y1, y);
+    };
+    for (const figlio of nodo.children) {
+      const nome = figlio.tagName;
+      const n = a => parseFloat(figlio.getAttribute(a));
+      if (nome === 'line') { punto(n('x1'), n('y1')); punto(n('x2'), n('y2')); }
+      else if (nome === 'polygon' || nome === 'polyline') {
+        (figlio.getAttribute('points') || '').trim().split(/\s+/).forEach(coppia => {
+          const [x, y] = coppia.split(',').map(parseFloat);
+          punto(x, y);
+        });
+      } else if (nome === 'rect') {
+        punto(n('x'), n('y'));
+        punto(n('x') + n('width'), n('y') + n('height'));
+      } else if (nome === 'text') {
+        punto(n('x'), n('y'));
+      } else if (nome === 'g') {
+        misuraGruppo(figlio, acc);
+      }
+    }
+    return acc;
+  }
+
   function adattaViewBox(svg, gruppo, margine) {
-    const bb = gruppo.getBBox();
+    let bb;
+    try { bb = gruppo.getBBox(); } catch (e) { bb = null; }
+    if (!bb || !bb.width || !bb.height) {
+      const m = misuraGruppo(gruppo);
+      if (!isFinite(m.x0)) return;
+      bb = { x: m.x0, y: m.y0, width: m.x1 - m.x0, height: m.y1 - m.y0 };
+    }
     const x = bb.x - margine, y = bb.y - margine;
     const w = Math.max(bb.width + 2 * margine, 1), h = Math.max(bb.height + 2 * margine, 1);
     svg.setAttribute('viewBox', x + ' ' + y + ' ' + w + ' ' + h);
