@@ -869,10 +869,45 @@ const Disegno = (function () {
     svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
   }
 
+  // Disegna una figura piana isolata (per esempio la sagoma di una sezione),
+  // campita e contornata come nel disegno tecnico.
+  function disegnaFiguraPiana(svg, forme, opzioni) {
+    svuota(svg);
+    opzioni = opzioni || {};
+    const g = el('g', {});
+    const tutti = [].concat.apply([], forme);
+    if (!tutti.length) { svg.appendChild(g); return; }
+    const x0 = Math.min(...tutti.map(p => p[0])), x1 = Math.max(...tutti.map(p => p[0]));
+    const y0 = Math.min(...tutti.map(p => p[1])), y1 = Math.max(...tutti.map(p => p[1]));
+    const dimensione = Math.max(x1 - x0, y1 - y0) || 1;
+
+    if (opzioni.tratteggio !== false) disegnaTratteggio(g, forme, dimensione * 0.07);
+    for (const forma of forme) {
+      g.appendChild(el('polygon', {
+        points: forma.map(p => p[0].toFixed(2) + ',' + p[1].toFixed(2)).join(' '),
+        class: 'contorno-sezione'
+      }));
+    }
+    svg.appendChild(g);
+    // con "estensione" tutte le figure di una stessa domanda sono disegnate
+    // alla medesima scala, così anche le differenze di grandezza si vedono
+    if (opzioni.estensione) {
+      const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+      const e = opzioni.estensione;
+      svg.setAttribute('viewBox', [cx - e, cy - e, 2 * e, 2 * e].join(' '));
+    } else {
+      const margine = dimensione * 0.15;
+      svg.setAttribute('viewBox', [x0 - margine, y0 - margine,
+        (x1 - x0) + 2 * margine, (y1 - y0) + 2 * margine].join(' '));
+    }
+    svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+  }
+
   return {
     disegnaProiezioniOrtogonali,
     disegnaAssonometria,
     disegnaProspettiva,
+    disegnaFiguraPiana,
     puntiDiFuga,
     segmentiProiettati,
     limiti

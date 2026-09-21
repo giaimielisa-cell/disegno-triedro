@@ -446,16 +446,156 @@ const Palestra = (function () {
     };
   }
 
+  // --- Esercizi sulle sezioni ---
+
+  const NOMI_PIANO = {
+    orizzontale: 'orizzontale (parallelo al P.O.)',
+    verticale: 'verticale (parallelo al P.V.)',
+    profilo: 'di profilo (parallelo al P.L.)',
+    inclinato: 'inclinato'
+  };
+
+  function solidoDaSezionare() {
+    if (stato.livello === 'facile') {
+      const famiglia = scegli(['prisma', 'piramide', 'cilindro', 'cono', 'tronco']);
+      const lati = scegli([3, 4, 6]);
+      return {
+        solido: costruisci({
+          famiglia: famiglia, lati: lati, raggio: intero(26, 32), altezza: intero(50, 68),
+          raggioCima: 18, rot: lati === 4 ? 45 : 0, specchiato: false, rotazione: 0
+        }),
+        nome: famiglia
+      };
+    }
+    const d = Object.assign({}, descrizioneCasuale('difficile'), { rotazione: 0 });
+    return { solido: costruisci(d), nome: d.famiglia };
+  }
+
+  // Sagoma di una sezione, ridotta a una firma indipendente dalla scala:
+  // due sagome con la stessa firma sarebbero la stessa figura ingrandita.
+  function firmaSagoma(forme) {
+    return forme.map(forma => {
+      let perimetro = 0;
+      const lati = [];
+      for (let i = 0; i < forma.length; i++) {
+        const a = forma[i], b = forma[(i + 1) % forma.length];
+        const l = Math.hypot(b[0] - a[0], b[1] - a[1]);
+        lati.push(l);
+        perimetro += l;
+      }
+      if (!perimetro) return '';
+      return lati.map(l => (l / perimetro).toFixed(3)).sort().join(',');
+    }).sort().join('|');
+  }
+
+  // Sui solidi curvi il contorno di sezione è fatto di molti segmenti: contarli
+  // non direbbe nulla allo studente.
+  function descriviSagoma(forme) {
+    const lati = forme[0].length;
+    if (forme.length > 1) return 'La sezione è formata da più contorni separati.';
+    if (lati > 12) return 'La sezione è una figura a contorno curvo.';
+    const nomi = { 3: 'un triangolo', 4: 'un quadrilatero', 5: 'un pentagono', 6: 'un esagono' };
+    return 'La sezione è ' + (nomi[lati] || 'un poligono di ' + lati + ' lati') + '.';
+  }
+
+  function sezioneDi(solido, config) {
+    const piano = Sezione.piano(solido, config);
+    const taglio = Sezione.taglia(solido, piano);
+    if (!taglio.anelli.length) return null;
+    const forme = Sezione.veraForma(taglio.anelli);
+    if (!forme.length || forme[0].length < 3) return null;
+    return { config: config, forme: forme, firma: firmaSagoma(forme) };
+  }
+
+  function generaRiconoscimentoSezione() {
+    for (let tentativo = 0; tentativo < 10; tentativo++) {
+      const base = solidoDaSezionare();
+      const solido = base.solido;
+      const config = {
+        tipo: scegli(['orizzontale', 'verticale', 'profilo', 'inclinato']),
+        posizione: intero(35, 65), inclinazione: scegli([25, 35, 45]),
+        invertito: false, attiva: true, effettuata: false
+      };
+      const corretta = sezioneDi(solido, config);
+      if (!corretta) continue;
+
+      // i distrattori sono sezioni dello stesso solido con un piano diverso:
+      // sono figure vere, non inventate, e per questo plausibili
+      const alternative = mescola([
+        { tipo: 'orizzontale' }, { tipo: 'verticale' }, { tipo: 'profilo' },
+        { tipo: 'inclinato', inclinazione: 25 }, { tipo: 'inclinato', inclinazione: 50 },
+        { posizione: config.posizione < 50 ? 72 : 28 }
+      ]);
+      const candidati = [];
+      for (const modifica of alternative) {
+        const altra = sezioneDi(solido, Object.assign({}, config, modifica));
+        if (!altra) continue;
+        if (altra.firma === corretta.firma) continue;
+        if (candidati.some(s => s.firma === altra.firma)) continue;
+        candidati.push(altra);
+      }
+      // si preferiscono le sagome con un numero di lati diverso: distinguerle
+      // richiede di immaginare la forma, non di confrontare proporzioni simili
+      const latiCorretti = corretta.forme[0].length;
+      candidati.sort((a, b) =>
+        (Math.abs(b.forme[0].length - latiCorretti) > 0 ? 1 : 0) -
+        (Math.abs(a.forme[0].length - latiCorretti) > 0 ? 1 : 0));
+      const scelti = candidati.slice(0, 3);
+      if (scelti.length < 3) continue;
+
+      const opzioni = mescola([corretta].concat(scelti));
+      const indiceCorretto = opzioni.indexOf(corretta);
+      // tutte le sagome alla stessa scala
+      const estensione = Math.max.apply(null, opzioni.map(o => {
+        const punti = [].concat.apply([], o.forme);
+        return Math.max(
+          Math.max(...punti.map(p => p[0])) - Math.min(...punti.map(p => p[0])),
+          Math.max(...punti.map(p => p[1])) - Math.min(...punti.map(p => p[1]))
+        );
+      })) * 0.62;
+
+      return {
+        argomento: 'sezioni',
+        tipo: 'riconoscimento-sezione',
+        forma: 'scelta',
+        domanda: 'Il solido è tagliato dal piano ' + NOMI_PIANO[config.tipo] +
+          ' che vedi in figura. Quale delle quattro sagome è la sezione che ne risulta, in vera forma?',
+        disegnaDomanda: svg => Disegno.disegnaAssonometria(svg, solido,
+          vistaCanonica('isometrica'),
+          Object.assign({}, OPZIONI_ASSONOMETRIA, { sezione: config })),
+        opzioni: opzioni.map(o => ({
+          dato: o,
+          disegna: svg => Disegno.disegnaFiguraPiana(svg, o.forme, { estensione: estensione })
+        })),
+        indiceCorretto: indiceCorretto,
+        riscontro: (indiceScelto, giusta) => {
+          const descrizione = descriviSagoma(corretta.forme);
+          if (giusta) return descrizione + ' Le altre sagome sono sezioni vere dello stesso solido, ma con il piano in un\'altra posizione.';
+          const scelta = opzioni[indiceScelto];
+          const suo = scelta.config;
+          const differenza = suo.tipo !== config.tipo
+            ? 'quella sagoma si otterrebbe con un piano ' + NOMI_PIANO[suo.tipo]
+            : (suo.inclinazione !== config.inclinazione
+              ? 'quella sagoma si otterrebbe con il piano inclinato diversamente'
+              : 'quella sagoma si otterrebbe spostando il piano lungo il suo asse');
+          return descrizione + ' Invece ' + differenza + '.';
+        }
+      };
+    }
+    return null;
+  }
+
   // --- Registro dei generatori ---
 
   const GENERATORI = {
     ortogonali: [generaEsercizioOrtogonali],
-    assonometria: [generaTipoAssonometria, generaCoefficienti, generaErroreCostruzione]
+    assonometria: [generaTipoAssonometria, generaCoefficienti, generaErroreCostruzione],
+    sezioni: [generaRiconoscimentoSezione]
   };
 
   function generatoriAttivi() {
     if (stato.argomento === 'misto') {
-      return GENERATORI.ortogonali.concat(GENERATORI.assonometria);
+      return GENERATORI.ortogonali.concat(GENERATORI.assonometria, GENERATORI.sezioni);
     }
     return GENERATORI[stato.argomento] || GENERATORI.ortogonali;
   }
