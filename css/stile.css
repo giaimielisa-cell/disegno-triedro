@@ -187,6 +187,13 @@ section { flex: 1; display: flex; flex-direction: column; min-height: 0; padding
   stroke-dasharray: 10 3 2 3;
   vector-effect: non-scaling-stroke;
 }
+.asse-errato {
+  stroke: var(--evidenza);
+  stroke-width: 1.8;
+  stroke-dasharray: 10 3 2 3;
+  vector-effect: non-scaling-stroke;
+}
+.etichetta-asse-errato { fill: var(--evidenza); font-weight: 700; font-style: italic; }
 .griglia { stroke: #dedbd2; stroke-width: 1; vector-effect: non-scaling-stroke; }
 
 .linea-orizzonte {
@@ -383,6 +390,30 @@ text { font-family: "Segoe UI", system-ui, sans-serif; }
   font-weight: 700; color: var(--inchiostro-tenue);
 }
 .disegno-opzione { flex: 1; width: 100%; height: 100%; }
+
+.opzioni.abbinamento { grid-template-columns: repeat(3, 1fr); }
+.carta-abbinamento {
+  position: relative;
+  background: var(--carta-chiara);
+  border: 2px solid var(--bordo);
+  border-radius: var(--raggio);
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.carta-abbinamento.giusta { border-color: #1e7a41; background: #f0f8f2; }
+.carta-abbinamento.sbagliata { border-color: var(--evidenza); background: #fdf1ec; }
+.carta-abbinamento .disegno-opzione { height: min(22vh, 180px); }
+.scelte-abbinamento { display: flex; gap: 4px; flex-wrap: wrap; }
+.scelte-abbinamento button {
+  font: inherit; font-size: 0.85rem; flex: 1;
+  padding: 8px 4px; min-height: 42px;
+  border: 1px solid var(--bordo); background: var(--carta);
+  border-radius: var(--raggio); cursor: pointer;
+}
+.scelte-abbinamento button.attivo { background: var(--blu); color: #fff; border-color: var(--blu); }
+.scelte-abbinamento button.valore-giusto { border-color: #1e7a41; border-width: 2px; font-weight: 700; }
 
 .riscontro { min-height: 2.6em; font-size: 1rem; padding: 4px 2px; }
 .riscontro.esito-giusto { color: #1e7a41; font-weight: 600; }

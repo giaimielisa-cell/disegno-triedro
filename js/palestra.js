@@ -1,7 +1,7 @@
 // Palestra: esercizi generati a caso, con punteggio e riscontro immediato.
 // I distrattori nascono dalla risposta corretta cambiando un solo dato, e
-// vengono accettati solo se producono davvero viste diverse: così non sono
-// né palesemente errati né ambigui.
+// vengono accettati solo se producono davvero un disegno diverso: così non
+// sono né palesemente errati né ambigui.
 
 const Palestra = (function () {
   'use strict';
@@ -15,18 +15,21 @@ const Palestra = (function () {
     risposte: 0,
     statistiche: {
       ortogonali: { giuste: 0, totali: 0 },
+      assonometria: { giuste: 0, totali: 0 },
       sezioni: { giuste: 0, totali: 0 },
       prospettiva: { giuste: 0, totali: 0 }
     },
     ripescaggio: [],
     esercizio: null,
-    risposto: false
+    risposto: false,
+    abbinamenti: {}
   };
 
   let el = {};
 
   function scegli(elenco) { return elenco[Math.floor(Math.random() * elenco.length)]; }
   function intero(minimo, massimo) { return minimo + Math.floor(Math.random() * (massimo - minimo + 1)); }
+  function mescola(elenco) { return elenco.slice().sort(() => Math.random() - 0.5); }
 
   // --- Descrizione dei solidi da esercizio ---
   // Un solido è descritto da pochi dati: cambiarne uno solo dà un distrattore.
@@ -97,7 +100,6 @@ const Palestra = (function () {
     lista.push(copia({ altezza: Math.round(d.altezza * 0.6) }));
     if (d.raggioCima) lista.push(copia({ raggioCima: Math.round(d.raggio * 0.85) }));
 
-    // solidi composti: specchiatura, rotazione e una misura alla volta
     if (d.l) {
       lista.push(copia({ specchiato: !d.specchiato }));
       lista.push(copia({ rotazione: (d.rotazione + 90) % 360 }));
@@ -110,12 +112,9 @@ const Palestra = (function () {
     return lista;
   }
 
-  // --- Firma delle viste ---
-  // Due solidi con la stessa firma darebbero le stesse proiezioni: una domanda
-  // che li mettesse insieme non avrebbe una risposta sola.
+  // --- Firme: due disegni identici non possono stare nella stessa domanda ---
 
-  function firmaPerVista(solido, nome) {
-    const vista = Geo.vistaOrtogonale(nome);
+  function firmaConVista(solido, vista) {
     const spigoli = Geo.spigoliDaTracciare(solido, vista);
     const segmenti = Geo.segmentiVisibilita(solido, spigoli, vista, 6);
     const q = v => Math.round(v * 2) / 2;
@@ -129,9 +128,9 @@ const Palestra = (function () {
 
   function firmaViste(solido) {
     return {
-      prospetto: firmaPerVista(solido, 'prospetto'),
-      pianta: firmaPerVista(solido, 'pianta'),
-      laterale: firmaPerVista(solido, 'laterale')
+      prospetto: firmaConVista(solido, Geo.vistaOrtogonale('prospetto')),
+      pianta: firmaConVista(solido, Geo.vistaOrtogonale('pianta')),
+      laterale: firmaConVista(solido, Geo.vistaOrtogonale('laterale'))
     };
   }
 
@@ -147,49 +146,6 @@ const Palestra = (function () {
     return nomi;
   }
 
-  // --- Generazione di un esercizio sulle proiezioni ortogonali ---
-
-  function generaQuattroSolidi() {
-    for (let tentativo = 0; tentativo < 12; tentativo++) {
-      const descrizione = stato.ripescaggio.length && Math.random() < 0.4
-        ? stato.ripescaggio[intero(0, stato.ripescaggio.length - 1)]
-        : descrizioneCasuale(stato.livello);
-      const corretto = { descrizione: descrizione, solido: costruisci(descrizione) };
-      corretto.firma = firmaViste(corretto.solido);
-
-      const candidati = varianti(descrizione).sort(() => Math.random() - 0.5);
-      const scelti = [];
-      for (const c of candidati) {
-        if (scelti.length === 3) break;
-        let solido;
-        try { solido = costruisci(c); } catch (e) { continue; }
-        const firma = firmaViste(solido);
-        if (firmeUguali(firma, corretto.firma)) continue;          // indistinguibile
-        if (scelti.some(s => firmeUguali(s.firma, firma))) continue; // doppione
-        scelti.push({ descrizione: c, solido: solido, firma: firma });
-      }
-      if (scelti.length === 3) return { corretto: corretto, distrattori: scelti };
-    }
-    return null;
-  }
-
-  function generaEsercizioOrtogonali() {
-    const insieme = generaQuattroSolidi();
-    if (!insieme) return null;
-    const tipo = Math.random() < 0.5 ? 'viste-al-solido' : 'solido-alle-viste';
-    const opzioni = [insieme.corretto].concat(insieme.distrattori).sort(() => Math.random() - 0.5);
-    return {
-      argomento: 'ortogonali',
-      tipo: tipo,
-      domanda: tipo === 'viste-al-solido'
-        ? 'Queste sono le tre proiezioni ortogonali di un solido. Quale dei quattro solidi le genera?'
-        : 'Questo è il solido in assonometria. Quale terna di proiezioni ortogonali gli corrisponde?',
-      corretto: insieme.corretto,
-      opzioni: opzioni,
-      indiceCorretto: opzioni.indexOf(insieme.corretto)
-    };
-  }
-
   // --- Disegno ---
 
   const OPZIONI_VISTE = {
@@ -200,6 +156,18 @@ const Palestra = (function () {
   const OPZIONI_ASSONOMETRIA = {
     spigoliNascosti: true, etichette: false, assi: false, griglia: false, resa: 'wireframe'
   };
+
+  // Porta il solido nel primo triedro, appoggiato all'origine: gli assi di
+  // riferimento formano così l'angolo alla base del solido.
+  function nelTriedro(solido) {
+    const v = solido.vertici;
+    const dx = Math.min(...v.map(p => p[0])), dy = Math.min(...v.map(p => p[1])), dz = Math.min(...v.map(p => p[2]));
+    return {
+      id: solido.id, nome: solido.nome,
+      vertici: v.map(p => [p[0] - dx, p[1] - dy, p[2] - dz]),
+      facce: solido.facce
+    };
+  }
 
   function nuovoSvg(contenitore, classe) {
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -212,99 +180,78 @@ const Palestra = (function () {
     Disegno.disegnaProiezioniOrtogonali(svg, solido, OPZIONI_VISTE);
   }
 
-  function disegnaAssonometria(svg, solido) {
-    Disegno.disegnaAssonometria(svg, solido,
-      Geo.vistaAssonometricaDiretta(Geo.TIPI_ASSONOMETRIA.isometrica), OPZIONI_ASSONOMETRIA);
+  function disegnaAsso(svg, solido, vista, extra) {
+    Disegno.disegnaAssonometria(svg, solido, vista,
+      Object.assign({}, OPZIONI_ASSONOMETRIA, extra || {}));
   }
 
-  // --- Svolgimento ---
-
-  function nuovoEsercizio() {
-    const esercizio = generaEsercizioOrtogonali();
-    if (!esercizio) {
-      el.domanda.textContent = 'Non sono riuscito a costruire un esercizio: riprova.';
-      return;
-    }
-    stato.esercizio = esercizio;
-    stato.risposto = false;
-
-    el.domanda.textContent = esercizio.domanda;
-    el.riscontro.textContent = '';
-    el.riscontro.className = 'riscontro';
-    el.prossimo.hidden = true;
-
-    el.riquadroDomanda.innerHTML = '';
-    const svgDomanda = nuovoSvg(el.riquadroDomanda, 'disegno-domanda');
-    if (esercizio.tipo === 'viste-al-solido') disegnaViste(svgDomanda, esercizio.corretto.solido);
-    else disegnaAssonometria(svgDomanda, esercizio.corretto.solido);
-
-    el.opzioni.innerHTML = '';
-    esercizio.opzioni.forEach((opzione, indice) => {
-      const carta = document.createElement('button');
-      carta.type = 'button';
-      carta.className = 'carta-opzione';
-      carta.dataset.indice = indice;
-      const etichetta = document.createElement('span');
-      etichetta.className = 'lettera-opzione';
-      etichetta.textContent = 'ABCD'[indice];
-      carta.appendChild(etichetta);
-      const svg = nuovoSvg(carta, 'disegno-opzione');
-      if (esercizio.tipo === 'viste-al-solido') disegnaAssonometria(svg, opzione.solido);
-      else disegnaViste(svg, opzione.solido);
-      carta.addEventListener('click', () => rispondi(indice));
-      el.opzioni.appendChild(carta);
-    });
+  function vistaCanonica(tipo) {
+    return Geo.vistaAssonometricaDiretta(Geo.TIPI_ASSONOMETRIA[tipo]);
   }
 
-  function rispondi(indice) {
-    if (stato.risposto) return;
-    stato.risposto = true;
-    const esercizio = stato.esercizio;
-    const giusta = indice === esercizio.indiceCorretto;
-    const statistica = stato.statistiche[esercizio.argomento];
+  // --- Esercizi sulle proiezioni ortogonali ---
 
-    statistica.totali++;
-    stato.risposte++;
-    if (giusta) {
-      statistica.giuste++;
-      stato.punteggio += 10 + Math.min(stato.serie, 5) * 2;
-      stato.serie++;
-      stato.miglioreSerie = Math.max(stato.miglioreSerie, stato.serie);
-    } else {
-      stato.serie = 0;
-      // il solido sbagliato torna più spesso nelle domande successive
-      stato.ripescaggio.push(esercizio.corretto.descrizione);
-      if (stato.ripescaggio.length > 8) stato.ripescaggio.shift();
+  function generaQuattroSolidi() {
+    for (let tentativo = 0; tentativo < 12; tentativo++) {
+      const descrizione = stato.ripescaggio.length && Math.random() < 0.4
+        ? stato.ripescaggio[intero(0, stato.ripescaggio.length - 1)]
+        : descrizioneCasuale(stato.livello);
+      const corretto = { descrizione: descrizione, solido: costruisci(descrizione) };
+      corretto.firma = firmaViste(corretto.solido);
+
+      const scelti = [];
+      for (const c of mescola(varianti(descrizione))) {
+        if (scelti.length === 3) break;
+        let solido;
+        try { solido = costruisci(c); } catch (e) { continue; }
+        const firma = firmaViste(solido);
+        if (firmeUguali(firma, corretto.firma)) continue;
+        if (scelti.some(s => firmeUguali(s.firma, firma))) continue;
+        scelti.push({ descrizione: c, solido: solido, firma: firma });
+      }
+      if (scelti.length === 3) return { corretto: corretto, distrattori: scelti };
     }
-
-    el.opzioni.querySelectorAll('.carta-opzione').forEach(carta => {
-      const i = Number(carta.dataset.indice);
-      carta.disabled = true;
-      if (i === esercizio.indiceCorretto) carta.classList.add('giusta');
-      else if (i === indice) carta.classList.add('sbagliata');
-    });
-
-    el.riscontro.className = 'riscontro ' + (giusta ? 'esito-giusto' : 'esito-sbagliato');
-    el.riscontro.textContent = giusta
-      ? 'Giusto. ' + perchePlausibile(esercizio, indice)
-      : 'Non è questa: la risposta corretta è ' + 'ABCD'[esercizio.indiceCorretto] + '. ' +
-        perchePlausibile(esercizio, indice);
-    el.prossimo.hidden = false;
-    aggiornaTabellone();
+    return null;
   }
 
-  // Il riscontro dice dove si vede la differenza, non solo se la risposta è giusta.
-  function perchePlausibile(esercizio, indiceScelto) {
-    const corretta = esercizio.opzioni[esercizio.indiceCorretto];
-    const scelta = esercizio.opzioni[indiceScelto];
-    if (scelta === corretta) {
-      const altra = esercizio.opzioni.find(o => o !== corretta);
-      const viste = visteCheDifferiscono(corretta.firma, altra.firma);
-      return 'Le alternative si smascherano guardando ' + elenco(viste) + '.';
-    }
-    const viste = visteCheDifferiscono(corretta.firma, scelta.firma);
-    return differenzaDescrizioni(corretta.descrizione, scelta.descrizione) +
-      ' Se ne accorgi confrontando ' + elenco(viste) + '.';
+  function generaEsercizioOrtogonali() {
+    const insieme = generaQuattroSolidi();
+    if (!insieme) return null;
+    const tipo = Math.random() < 0.5 ? 'viste-al-solido' : 'solido-alle-viste';
+    const mescolate = mescola([insieme.corretto].concat(insieme.distrattori));
+    const indiceCorretto = mescolate.indexOf(insieme.corretto);
+
+    return {
+      argomento: 'ortogonali',
+      tipo: tipo,
+      forma: 'scelta',
+      domanda: tipo === 'viste-al-solido'
+        ? 'Queste sono le tre proiezioni ortogonali di un solido. Quale dei quattro solidi le genera?'
+        : 'Questo è il solido in assonometria, collocato nel triedro di riferimento. Quale terna di proiezioni ortogonali gli corrisponde?',
+      disegnaDomanda: svg => {
+        if (tipo === 'viste-al-solido') disegnaViste(svg, insieme.corretto.solido);
+        else disegnaAsso(svg, nelTriedro(insieme.corretto.solido), vistaCanonica('isometrica'), { assi: true });
+      },
+      opzioni: mescolate.map(o => ({
+        dato: o,
+        disegna: svg => {
+          if (tipo === 'viste-al-solido') disegnaAsso(svg, o.solido, vistaCanonica('isometrica'));
+          else disegnaViste(svg, o.solido);
+        }
+      })),
+      indiceCorretto: indiceCorretto,
+      riscontro: (indiceScelto, giusta) => {
+        const corretta = mescolate[indiceCorretto];
+        if (giusta) {
+          const altra = mescolate.find(o => o !== corretta);
+          return 'Le alternative si smascherano guardando ' + elenco(visteCheDifferiscono(corretta.firma, altra.firma)) + '.';
+        }
+        const scelta = mescolate[indiceScelto];
+        return differenzaDescrizioni(corretta.descrizione, scelta.descrizione) +
+          ' Se ne accorgi confrontando ' + elenco(visteCheDifferiscono(corretta.firma, scelta.firma)) + '.';
+      },
+      ripescabile: insieme.corretto.descrizione
+    };
   }
 
   function elenco(nomi) {
@@ -327,6 +274,318 @@ const Palestra = (function () {
     return 'I due solidi differiscono per un solo dettaglio.';
   }
 
+  // --- Esercizi sull'assonometria ---
+
+  const NOMI_ASSONOMETRIA = {
+    isometrica: 'Isometrica', cavaliera: 'Cavaliera', monometrica: 'Monometrica'
+  };
+
+  // Per gli esercizi sull'assonometria servono solidi con spigoli ben visibili:
+  // su cilindri e coni le direzioni degli assi non si leggono.
+  function solidoPerAssonometria() {
+    if (stato.livello === 'facile') {
+      const famiglia = scegli(['prisma', 'piramide', 'tronco']);
+      const lati = scegli([3, 4, 6]);
+      return costruisci({
+        famiglia: famiglia, lati: lati, raggio: intero(26, 34), altezza: intero(45, 65),
+        raggioCima: intero(14, 20), rot: lati === 4 ? 45 : 0, specchiato: false, rotazione: 0
+      });
+    }
+    let descrizione = descrizioneCasuale('difficile');
+    descrizione = Object.assign({}, descrizione, { rotazione: 0 });
+    return costruisci(descrizione);
+  }
+
+  // 1. Riconoscere il tipo di assonometria (esercizio di abbinamento)
+  function generaTipoAssonometria() {
+    const solido = solidoPerAssonometria();
+    const tipi = mescola(['isometrica', 'cavaliera', 'monometrica']);
+    return {
+      argomento: 'assonometria',
+      tipo: 'tipo-assonometria',
+      forma: 'abbinamento',
+      domanda: 'Lo stesso solido è rappresentato nei tre tipi di assonometria. Assegna a ciascuna immagine il tipo corretto.',
+      disegnaDomanda: null,
+      scelte: ['isometrica', 'cavaliera', 'monometrica'].map(t => ({ valore: t, etichetta: NOMI_ASSONOMETRIA[t] })),
+      elementi: tipi.map(t => ({
+        valore: t,
+        disegna: (svg, conRiscontro) => disegnaAsso(svg, solido, vistaCanonica(t),
+          conRiscontro ? { assi: true, assiConDati: true } : {})
+      })),
+      riscontro: () => 'Guarda gli angoli degli assi: la cavaliera ha l\'asse x orizzontale e la profondità a 45°, ' +
+        'l\'isometrica ha i tre assi a 120° tra loro, la monometrica ha gli assi a 7° e 42° sull\'orizzontale.'
+    };
+  }
+
+  // 2. Riconoscere i coefficienti di riduzione corretti
+  function generaCoefficienti() {
+    const solido = solidoPerAssonometria();
+    const tipo = scegli(['cavaliera', 'monometrica', 'isometrica']);
+    const base = Geo.TIPI_ASSONOMETRIA[tipo];
+    const sbagliati = [
+      Object.assign({}, base, { ky: base.ky === 1 ? 0.5 : 1 }),
+      Object.assign({}, base, { kz: 0.6 }),
+      Object.assign({}, base, { kx: 0.6, ky: base.ky === 1 ? 0.6 : base.ky })
+    ];
+    const opzioni = mescola([base].concat(sbagliati));
+    const indiceCorretto = opzioni.indexOf(base);
+
+    return {
+      argomento: 'assonometria',
+      tipo: 'coefficienti',
+      forma: 'scelta',
+      domanda: 'Le quattro immagini rappresentano lo stesso solido in assonometria ' +
+        NOMI_ASSONOMETRIA[tipo].toLowerCase() +
+        ', ma una sola usa i coefficienti di riduzione corretti. Quale?',
+      disegnaDomanda: null,
+      opzioni: opzioni.map(config => ({
+        dato: config,
+        disegna: (svg, conRiscontro) => disegnaAsso(svg, solido, Geo.vistaAssonometricaDiretta(config),
+          conRiscontro ? { assi: true, assiConDati: true, assiInEvidenza: config !== base } : {})
+      })),
+      indiceCorretto: indiceCorretto,
+      riscontro: (indiceScelto, giusta) => {
+        const misure = 'Nell\'assonometria ' + NOMI_ASSONOMETRIA[tipo].toLowerCase() + ' i coefficienti sono ' +
+          'kx=' + numero(base.kx) + ', ky=' + numero(base.ky) + ', kz=' + numero(base.kz) + '.';
+        if (giusta) return misure + ' Sugli assi delle altre immagini leggi le misure sbagliate.';
+        const scelta = opzioni[indiceScelto];
+        return 'Quella che hai scelto usa kx=' + numero(scelta.kx) + ', ky=' + numero(scelta.ky) +
+          ', kz=' + numero(scelta.kz) + '. ' + misure;
+      }
+    };
+  }
+
+  function numero(v) { return v.toFixed(2).replace('.', ',').replace(',00', ''); }
+
+  // 3. Individuare l'unica assonometria costruita correttamente
+  const ERRORI = {
+    fuga: {
+      nome: 'gli spigoli paralleli nello spazio convergono invece di restare paralleli',
+      applica: vista => Object.assign({}, vista, {
+        project: v => {
+          const p = vista.project(v);
+          const k = 1 - 0.005 * v[1];
+          return [p[0] * k, p[1] * k];
+        }
+      })
+    },
+    angoli: {
+      nome: 'uno degli assi è disegnato con un angolo sbagliato',
+      config: base => Object.assign({}, base, { angoloY: base.angoloY - 24 })
+    },
+    proporzioni: {
+      nome: 'le proporzioni tra gli assi non sono coerenti',
+      config: base => Object.assign({}, base, { kz: 0.65, kx: 1.1 })
+    },
+    verticale: {
+      nome: 'l\'asse delle altezze non è verticale',
+      config: base => Object.assign({}, base, { angoloZ: 79 })
+    }
+  };
+
+  function generaErroreCostruzione() {
+    const solido = solidoPerAssonometria();
+    const tipo = scegli(['isometrica', 'cavaliera', 'monometrica']);
+    const base = Geo.TIPI_ASSONOMETRIA[tipo];
+    const corretta = { errore: null, vista: Geo.vistaAssonometricaDiretta(base) };
+    const errori = mescola(Object.keys(ERRORI)).slice(0, 3);
+    const sbagliate = errori.map(nome => {
+      const e = ERRORI[nome];
+      const vista = e.config
+        ? Geo.vistaAssonometricaDiretta(e.config(base))
+        : e.applica(Geo.vistaAssonometricaDiretta(base));
+      return { errore: nome, vista: vista };
+    });
+    const opzioni = mescola([corretta].concat(sbagliate));
+    const indiceCorretto = opzioni.indexOf(corretta);
+
+    return {
+      argomento: 'assonometria',
+      tipo: 'errore-costruzione',
+      forma: 'scelta',
+      domanda: 'Queste quattro rappresentazioni in assonometria ' + NOMI_ASSONOMETRIA[tipo].toLowerCase() +
+        ' dovrebbero essere identiche, ma tre contengono un errore di costruzione. Qual è l\'unica corretta?',
+      disegnaDomanda: null,
+      opzioni: opzioni.map(o => ({
+        dato: o,
+        disegna: (svg, conRiscontro) => disegnaAsso(svg, solido, o.vista,
+          conRiscontro ? { assi: true, assiConDati: true, assiInEvidenza: !!o.errore } : {})
+      })),
+      indiceCorretto: indiceCorretto,
+      riscontro: (indiceScelto, giusta) => {
+        const elencoErrori = sbagliate.map(s => ERRORI[s.errore].nome).join('; ');
+        if (giusta) return 'Nelle altre tre: ' + elencoErrori + '. Gli assi in rosso mostrano dove.';
+        const scelta = opzioni[indiceScelto];
+        return 'In quella che hai scelto ' + ERRORI[scelta.errore].nome +
+          '. Gli assi in rosso segnalano le immagini sbagliate.';
+      }
+    };
+  }
+
+  // --- Registro dei generatori ---
+
+  const GENERATORI = {
+    ortogonali: [generaEsercizioOrtogonali],
+    assonometria: [generaTipoAssonometria, generaCoefficienti, generaErroreCostruzione]
+  };
+
+  function generatoriAttivi() {
+    if (stato.argomento === 'misto') {
+      return GENERATORI.ortogonali.concat(GENERATORI.assonometria);
+    }
+    return GENERATORI[stato.argomento] || GENERATORI.ortogonali;
+  }
+
+  // --- Svolgimento ---
+
+  function nuovoEsercizio() {
+    let esercizio = null;
+    for (let tentativo = 0; tentativo < 5 && !esercizio; tentativo++) {
+      esercizio = scegli(generatoriAttivi())();
+    }
+    if (!esercizio) {
+      el.domanda.textContent = 'Non sono riuscito a costruire un esercizio: prova a cambiare livello.';
+      return;
+    }
+    stato.esercizio = esercizio;
+    stato.risposto = false;
+    stato.abbinamenti = {};
+
+    el.domanda.textContent = esercizio.domanda;
+    el.riscontro.textContent = '';
+    el.riscontro.className = 'riscontro';
+    el.prossimo.hidden = true;
+
+    el.riquadroDomanda.innerHTML = '';
+    el.riquadroDomanda.hidden = !esercizio.disegnaDomanda;
+    if (esercizio.disegnaDomanda) {
+      esercizio.disegnaDomanda(nuovoSvg(el.riquadroDomanda, 'disegno-domanda'));
+    }
+
+    el.opzioni.innerHTML = '';
+    el.opzioni.className = esercizio.forma === 'abbinamento' ? 'opzioni abbinamento' : 'opzioni';
+    if (esercizio.forma === 'abbinamento') costruisciAbbinamento(esercizio);
+    else costruisciScelta(esercizio);
+  }
+
+  function costruisciScelta(esercizio) {
+    esercizio.opzioni.forEach((opzione, indice) => {
+      const carta = document.createElement('button');
+      carta.type = 'button';
+      carta.className = 'carta-opzione';
+      carta.dataset.indice = indice;
+      const etichetta = document.createElement('span');
+      etichetta.className = 'lettera-opzione';
+      etichetta.textContent = 'ABCD'[indice];
+      carta.appendChild(etichetta);
+      opzione.disegna(nuovoSvg(carta, 'disegno-opzione'), false);
+      carta.addEventListener('click', () => rispondi(indice));
+      el.opzioni.appendChild(carta);
+    });
+  }
+
+  function costruisciAbbinamento(esercizio) {
+    esercizio.elementi.forEach((elemento, indice) => {
+      const carta = document.createElement('div');
+      carta.className = 'carta-abbinamento';
+      carta.dataset.indice = indice;
+      const etichetta = document.createElement('span');
+      etichetta.className = 'lettera-opzione';
+      etichetta.textContent = 'ABC'[indice];
+      carta.appendChild(etichetta);
+      elemento.disegna(nuovoSvg(carta, 'disegno-opzione'), false);
+
+      const scelte = document.createElement('div');
+      scelte.className = 'scelte-abbinamento';
+      esercizio.scelte.forEach(scelta => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.textContent = scelta.etichetta;
+        b.dataset.valore = scelta.valore;
+        b.addEventListener('click', () => {
+          if (stato.risposto) return;
+          stato.abbinamenti[indice] = scelta.valore;
+          scelte.querySelectorAll('button').forEach(x => x.classList.toggle('attivo', x === b));
+          el.verifica.disabled = Object.keys(stato.abbinamenti).length < esercizio.elementi.length;
+        });
+        scelte.appendChild(b);
+      });
+      carta.appendChild(scelte);
+      el.opzioni.appendChild(carta);
+    });
+    el.verifica.hidden = false;
+    el.verifica.disabled = true;
+  }
+
+  function rispondi(indice) {
+    if (stato.risposto) return;
+    stato.risposto = true;
+    const esercizio = stato.esercizio;
+    const giusta = indice === esercizio.indiceCorretto;
+
+    el.opzioni.querySelectorAll('.carta-opzione').forEach(carta => {
+      const i = Number(carta.dataset.indice);
+      carta.disabled = true;
+      if (i === esercizio.indiceCorretto) carta.classList.add('giusta');
+      else if (i === indice) carta.classList.add('sbagliata');
+      // il riscontro ridisegna l'opzione mostrando assi, angoli e coefficienti
+      const svg = carta.querySelector('svg');
+      esercizio.opzioni[i].disegna(svg, true);
+    });
+
+    concludi(giusta, giusta
+      ? 'Giusto. ' + esercizio.riscontro(indice, true)
+      : 'Non è questa: la risposta corretta è ' + 'ABCD'[esercizio.indiceCorretto] + '. ' +
+        esercizio.riscontro(indice, false));
+  }
+
+  function verificaAbbinamento() {
+    if (stato.risposto) return;
+    const esercizio = stato.esercizio;
+    stato.risposto = true;
+    let tutteGiuste = true;
+
+    el.opzioni.querySelectorAll('.carta-abbinamento').forEach(carta => {
+      const i = Number(carta.dataset.indice);
+      const scelto = stato.abbinamenti[i];
+      const giusta = scelto === esercizio.elementi[i].valore;
+      if (!giusta) tutteGiuste = false;
+      carta.classList.add(giusta ? 'giusta' : 'sbagliata');
+      carta.querySelectorAll('.scelte-abbinamento button').forEach(b => {
+        b.disabled = true;
+        if (b.dataset.valore === esercizio.elementi[i].valore) b.classList.add('valore-giusto');
+      });
+      esercizio.elementi[i].disegna(carta.querySelector('svg'), true);
+    });
+
+    el.verifica.hidden = true;
+    concludi(tutteGiuste, (tutteGiuste ? 'Tutte e tre corrette. ' : 'Qualche abbinamento non torna. ') +
+      esercizio.riscontro());
+  }
+
+  function concludi(giusta, testo) {
+    const esercizio = stato.esercizio;
+    const statistica = stato.statistiche[esercizio.argomento];
+    statistica.totali++;
+    stato.risposte++;
+    if (giusta) {
+      statistica.giuste++;
+      stato.punteggio += 10 + Math.min(stato.serie, 5) * 2;
+      stato.serie++;
+      stato.miglioreSerie = Math.max(stato.miglioreSerie, stato.serie);
+    } else {
+      stato.serie = 0;
+      if (esercizio.ripescabile) {
+        stato.ripescaggio.push(esercizio.ripescabile);
+        if (stato.ripescaggio.length > 8) stato.ripescaggio.shift();
+      }
+    }
+    el.riscontro.className = 'riscontro ' + (giusta ? 'esito-giusto' : 'esito-sbagliato');
+    el.riscontro.textContent = testo;
+    el.prossimo.hidden = false;
+    aggiornaTabellone();
+  }
+
   function aggiornaTabellone() {
     el.punteggio.textContent = stato.punteggio;
     el.serie.textContent = stato.serie;
@@ -337,17 +596,15 @@ const Palestra = (function () {
     for (const nome in stato.statistiche) {
       const s = stato.statistiche[nome];
       if (!s.totali) continue;
-      const percentuale = Math.round(100 * s.giuste / s.totali);
       righe.push('<div><span>' + etichettaArgomento(nome) + '</span><span>' +
-        s.giuste + '/' + s.totali + ' &middot; ' + percentuale + '%</span></div>');
+        s.giuste + '/' + s.totali + ' &middot; ' + Math.round(100 * s.giuste / s.totali) + '%</span></div>');
     }
-    el.statistiche.innerHTML = righe.length
-      ? '<h3>Come stai andando</h3>' + righe.join('')
-      : '';
+    el.statistiche.innerHTML = righe.length ? '<h3>Come stai andando</h3>' + righe.join('') : '';
   }
 
   function etichettaArgomento(nome) {
     if (nome === 'ortogonali') return 'Proiezioni ortogonali';
+    if (nome === 'assonometria') return 'Assonometria';
     if (nome === 'sezioni') return 'Sezioni';
     return 'Prospettiva';
   }
@@ -359,6 +616,7 @@ const Palestra = (function () {
       opzioni: document.getElementById('opzioni'),
       riscontro: document.getElementById('riscontro'),
       prossimo: document.getElementById('prossimo'),
+      verifica: document.getElementById('verifica'),
       punteggio: document.getElementById('punteggio'),
       serie: document.getElementById('serie'),
       migliore: document.getElementById('migliore'),
@@ -368,17 +626,20 @@ const Palestra = (function () {
       argomenti: document.querySelectorAll('[data-argomento]')
     };
 
-    el.prossimo.addEventListener('click', nuovoEsercizio);
+    el.prossimo.addEventListener('click', () => { el.verifica.hidden = true; nuovoEsercizio(); });
+    el.verifica.addEventListener('click', verificaAbbinamento);
     el.livelli.forEach(b => b.addEventListener('click', () => {
       stato.livello = b.dataset.livello;
       el.livelli.forEach(x => x.classList.toggle('attivo', x === b));
       stato.ripescaggio = [];
+      el.verifica.hidden = true;
       nuovoEsercizio();
     }));
     el.argomenti.forEach(b => b.addEventListener('click', () => {
       if (b.disabled) return;
       stato.argomento = b.dataset.argomento;
       el.argomenti.forEach(x => x.classList.toggle('attivo', x === b));
+      el.verifica.hidden = true;
       nuovoEsercizio();
     }));
 

@@ -756,7 +756,10 @@ const Disegno = (function () {
     const dimTesto = dimensione * 0.075;
 
     if (opzioni.griglia) disegnaGrigliaBase(g, solido, vista, dimensione);
-    if (opzioni.assi) disegnaAssiRiferimento(g, vista, dimensione, dimTesto);
+    if (opzioni.assi) {
+      disegnaAssiRiferimento(g, vista, dimensione, dimTesto,
+        { conDati: opzioni.assiConDati, inEvidenza: opzioni.assiInEvidenza });
+    }
     const ombreggiato = opzioni.resa === 'ombreggiato';
     if (ombreggiato) disegnaFacce(g, solido, vista, [0, 0]);
     // con le facce campite il solido è opaco: gli spigoli nascosti non si vedono
@@ -777,7 +780,8 @@ const Disegno = (function () {
     adattaViewBox(svg, g, dimensione * 0.18);
   }
 
-  function disegnaAssiRiferimento(gruppo, vista, dimensione, dimTesto) {
+  function disegnaAssiRiferimento(gruppo, vista, dimensione, dimTesto, opzioni) {
+    opzioni = opzioni || {};
     const L = dimensione * 0.85;
     const origine = vista.project([0, 0, 0]);
     const assi = [
@@ -785,11 +789,22 @@ const Disegno = (function () {
       { v: [0, L, 0], nome: 'y' },
       { v: [0, 0, L], nome: 'z' }
     ];
+    const classe = opzioni.inEvidenza ? 'asse-errato' : 'asse-riferimento';
     for (const a of assi) {
       const p = vista.project(a.v);
-      gruppo.appendChild(linea(origine[0], origine[1], p[0], p[1], 'asse-riferimento'));
-      const t = el('text', { x: p[0] + dimTesto * 0.3, y: p[1] - dimTesto * 0.2, class: 'etichetta-asse', 'font-size': dimTesto });
-      t.textContent = a.nome;
+      gruppo.appendChild(linea(origine[0], origine[1], p[0], p[1], classe));
+      let testo = a.nome;
+      // nei riscontri l'asse porta con sé angolo e coefficiente di riduzione
+      if (opzioni.conDati && vista.assi && vista.assi[a.nome]) {
+        const dato = vista.assi[a.nome];
+        testo += '  ' + dato.angolo.toFixed(0) + '°  k=' + dato.k.toFixed(2).replace('.', ',');
+      }
+      const t = el('text', {
+        x: p[0] + dimTesto * 0.3, y: p[1] - dimTesto * 0.2,
+        class: opzioni.inEvidenza ? 'etichetta-asse-errato' : 'etichetta-asse',
+        'font-size': dimTesto
+      });
+      t.textContent = testo;
       gruppo.appendChild(t);
     }
   }
