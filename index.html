@@ -42,7 +42,7 @@
     <div class="schede" role="tablist">
       <button type="button" role="tab" class="attivo" data-scheda="ortogonali">Proiezioni ortogonali</button>
       <button type="button" role="tab" data-scheda="assonometria">Assonometria</button>
-      <button type="button" role="tab" data-scheda="prospettiva" disabled title="In arrivo nella prossima fase">Prospettiva</button>
+      <button type="button" role="tab" data-scheda="prospettiva">Prospettiva</button>
       <button type="button" role="tab" data-scheda="sezioni" disabled title="In arrivo nella prossima fase">Sezioni</button>
     </div>
 
@@ -109,6 +109,29 @@
             <label for="pos-distanzaPL">Distanza dal P.L. <output id="val-distanzaPL">30</output></label>
             <input type="range" id="pos-distanzaPL" min="0" max="100" step="1" value="30">
           </div>
+        </fieldset>
+
+        <fieldset data-scheda="prospettiva">
+          <legend>Tipo di prospettiva</legend>
+          <div class="pulsanti-tipo">
+            <button type="button" data-prosp="centrale" class="attivo">Centrale</button>
+            <button type="button" data-prosp="accidentale">Accidentale</button>
+          </div>
+          <div class="cursore">
+            <label for="pv-distanza">Distanza dell'osservatore <output id="val-pv-distanza">140</output></label>
+            <input type="range" id="pv-distanza" min="60" max="400" step="5" value="140">
+          </div>
+          <div class="cursore">
+            <label for="pv-altezza">Altezza dell'occhio <output id="val-pv-altezza">45</output></label>
+            <input type="range" id="pv-altezza" min="0" max="160" step="1" value="45">
+          </div>
+          <div class="cursore" id="cursore-alfa">
+            <label for="pv-alfa">Rotazione del solido <output id="val-pv-alfa">45</output>°</label>
+            <input type="range" id="pv-alfa" min="5" max="85" step="1" value="45">
+          </div>
+          <label class="interruttore"><input type="checkbox" id="opz-fughe" checked><span>Linee di fuga</span></label>
+          <label class="interruttore"><input type="checkbox" id="opz-inquadra-fughe" checked><span>Inquadra i punti di fuga</span></label>
+          <p class="nota">Trascina nel disegno la linea d'orizzonte, il punto principale (P.P.) e i punti di fuga.</p>
         </fieldset>
 
         <fieldset data-scheda="assonometria">

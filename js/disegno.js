@@ -32,8 +32,8 @@ const Disegno = (function () {
   // --- Segmenti proiettati di un solido in una vista ---
 
   function segmentiProiettati(solido, vista) {
-    const spigoli = Geo.spigoliDaTracciare(solido, vista.viewDir);
-    const segmenti = Geo.segmentiVisibilita(solido, spigoli, vista.viewDir);
+    const spigoli = Geo.spigoliDaTracciare(solido, vista);
+    const segmenti = Geo.segmentiVisibilita(solido, spigoli, vista);
     return segmenti.map(s => ({
       a: vista.project(s.a),
       b: vista.project(s.b),
@@ -66,12 +66,15 @@ const Disegno = (function () {
 
   function disegnaFacce(gruppo, solido, vista, off) {
     const normali = Geo.normaliFacce(solido);
-    const V = Geo.normalize(vista.viewDir);
     const facce = solido.facce.map((f, i) => {
       const punti = f.map(k => solido.vertici[k]);
       const centro = punti.reduce((a, p) => Geo.add(a, p), [0, 0, 0]).map(c => c / punti.length);
-      return { indici: f, normale: normali[i], profondita: Geo.dot(centro, V) };
-    }).filter(f => Geo.dot(f.normale, V) < 0);
+      const verso = Geo.versoOsservatore(vista, centro);
+      const profondita = vista.puntoDiVista
+        ? -Geo.length(Geo.sub(vista.puntoDiVista, centro))
+        : Geo.dot(centro, Geo.normalize(vista.viewDir));
+      return { indici: f, normale: normali[i], profondita: profondita, davanti: Geo.dot(normali[i], verso) > 0 };
+    }).filter(f => f.davanti);
     facce.sort((a, b) => b.profondita - a.profondita);
     for (const f of facce) {
       const luce = Math.max(0, Geo.dot(f.normale, LUCE));
@@ -96,7 +99,9 @@ const Disegno = (function () {
   function disegnaEtichette(gruppo, solido, vista, off, dimensione) {
     if (solido.vertici.length > MAX_VERTICI_ETICHETTATI) return;
     const apice = APICI[vista.nome] || '';
-    const V = Geo.normalize(vista.viewDir);
+    const profonditaDi = v => vista.puntoDiVista
+      ? Geo.length(Geo.sub(vista.puntoDiVista, v))
+      : Geo.dot(v, Geo.normalize(vista.viewDir));
     // i vertici che cadono nello stesso punto della proiezione condividono
     // l'etichetta: davanti quello in vista, tra parentesi quello che sta dietro
     const punti = [];
@@ -104,7 +109,7 @@ const Disegno = (function () {
       const v = solido.vertici[i];
       const p = vista.project(v);
       const esistente = punti.find(q => Math.hypot(q.p[0] - p[0], q.p[1] - p[1]) < dimensione * 0.15);
-      const voce = { lettera: LETTERE[i], profondita: Geo.dot(v, V) };
+      const voce = { lettera: LETTERE[i], profondita: profonditaDi(v) };
       if (esistente) esistente.vertici.push(voce);
       else punti.push({ p: p, vertici: [voce] });
     }
@@ -288,6 +293,170 @@ const Disegno = (function () {
     return t;
   }
 
+  // --- Prospettiva ---
+
+  // Colloca il solido dietro il quadro: ruotato di "alfa" attorno all'asse
+  // verticale (0° = prospettiva centrale), appoggiato o sollevato secondo la
+  // quota, e allontanato dal quadro come nelle proiezioni ortogonali.
+  function collocaDietroIlQuadro(solido, posizione, alfaDeg) {
+    const p = posizione || {};
+    const b0 = limiti(solido);
+    const dimensione = Math.max(b0.x1 - b0.x0, b0.y1 - b0.y0, b0.z1 - b0.z0);
+    const allontanamento = p.allontanamento === undefined ? dimensione * 0.45 : p.allontanamento;
+    const quota = p.quota === undefined ? 0 : p.quota;
+
+    const chiave = allontanamento + '/' + quota + '/' + alfaDeg;
+    if (solido._dietroQuadro && solido._dietroQuadro.chiave === chiave) return solido._dietroQuadro.solido;
+
+    const m = Geo.rotZ(Geo.deg2rad(alfaDeg));
+    const ruotati = solido.vertici.map(v => Geo.matVec(m, v));
+    const minY = Math.min(...ruotati.map(v => v[1]));
+    const minZ = Math.min(...ruotati.map(v => v[2]));
+    const cx = (Math.min(...ruotati.map(v => v[0])) + Math.max(...ruotati.map(v => v[0]))) / 2;
+    const collocato = {
+      id: solido.id, nome: solido.nome, categoria: solido.categoria,
+      vertici: ruotati.map(v => [v[0] - cx, v[1] - minY + allontanamento, v[2] - minZ + quota]),
+      facce: solido.facce
+    };
+    solido._dietroQuadro = { chiave: chiave, solido: collocato };
+    return collocato;
+  }
+
+  // Direzioni orizzontali principali del solido: quelle dei suoi spigoli
+  // orizzontali, cioè le direzioni che generano i punti di fuga.
+  function direzioniDiFuga(alfaDeg) {
+    const a = Geo.deg2rad(alfaDeg);
+    return [
+      { u: [Math.cos(a), Math.sin(a), 0], nome: 'F1' },
+      { u: [-Math.sin(a), Math.cos(a), 0], nome: 'F2' }
+    ];
+  }
+
+  function disegnaProspettiva(svg, solidoOriginale, vista, opzioni) {
+    svuota(svg);
+    const solido = collocaDietroIlQuadro(solidoOriginale, opzioni.posizione, opzioni.alfa);
+    const g = el('g', {});
+    const b = limiti(solido);
+    const dimensione = Math.max(b.x1 - b.x0, b.y1 - b.y0, b.z1 - b.z0);
+
+    const proiettati = solido.vertici.map(v => vista.project(v));
+    const estremi = {
+      x0: Math.min(...proiettati.map(p => p[0])),
+      x1: Math.max(...proiettati.map(p => p[0])),
+      y0: Math.min(...proiettati.map(p => p[1])),
+      y1: Math.max(...proiettati.map(p => p[1]))
+    };
+    const fughe = puntiDiFuga(vista, opzioni.alfa);
+    const yOrizzonte = -vista.altezza;
+
+    // L'inquadratura comprende il solido, la linea di terra e l'orizzonte;
+    // solo su richiesta si allarga fino ai punti di fuga, che possono cadere
+    // molto lontano e rimpicciolire troppo il disegno.
+    const riquadro = {
+      x0: estremi.x0, x1: estremi.x1,
+      y0: Math.min(estremi.y0, yOrizzonte), y1: Math.max(estremi.y1, 0)
+    };
+    if (opzioni.inquadraFughe) {
+      fughe.filter(f => !f.coincidePP).forEach(f => {
+        riquadro.x0 = Math.min(riquadro.x0, f.p[0]);
+        riquadro.x1 = Math.max(riquadro.x1, f.p[0]);
+      });
+      riquadro.x0 = Math.min(riquadro.x0, vista.x);
+      riquadro.x1 = Math.max(riquadro.x1, vista.x);
+    }
+    // i testi si dimensionano sull'inquadratura, non sul solido
+    const dimTesto = Math.max(dimensione * 0.05, (riquadro.x1 - riquadro.x0) * 0.028);
+    const sinistra = riquadro.x0 - dimTesto;
+    const destra = riquadro.x1 + dimTesto;
+
+    if (opzioni.lineeDiFuga) disegnaLineeDiFuga(g, solido, vista, fughe, opzioni);
+
+    // linea di terra (base del quadro) e linea d'orizzonte
+    g.appendChild(linea(sinistra, 0, destra, 0, 'linea-terra'));
+    etichetta(g, 'L.T.', sinistra, -dimTesto * 0.45, 'etichetta-lt', dimTesto);
+    const presa = linea(sinistra, yOrizzonte, destra, yOrizzonte, 'area-presa-orizzonte');
+    presa.setAttribute('data-punto', 'orizzonte');
+    presa.setAttribute('stroke-width', dimTesto * 2.6);
+    g.appendChild(presa);
+    g.appendChild(linea(sinistra, yOrizzonte, destra, yOrizzonte, 'linea-orizzonte'));
+    // sotto la linea, per non finire sopra l'etichetta di un punto di fuga
+    etichetta(g, "linea d'orizzonte", sinistra, yOrizzonte + dimTesto * 1.15, 'etichetta-orizzonte', dimTesto);
+
+    const gv = el('g', { class: 'vista vista-prospettiva' });
+    const ombreggiato = opzioni.resa === 'ombreggiato';
+    if (ombreggiato) disegnaFacce(gv, solido, vista, [0, 0]);
+    disegnaSpigoli(gv, solido, vista, [0, 0],
+      ombreggiato ? Object.assign({}, opzioni, { spigoliNascosti: false }) : opzioni);
+    if (opzioni.etichette) disegnaEtichette(gv, solido, vista, [0, 0], dimTesto * 0.85);
+    g.appendChild(gv);
+
+    // punto principale e punti di fuga, con l'area di presa per il dito
+    puntoTrascinabile(g, [vista.x, yOrizzonte], 'P.P.', 'punto-vista', dimTesto, 'punto-principale');
+    fughe.filter(f => !f.coincidePP)
+      .forEach(f => puntoTrascinabile(g, f.p, f.etichetta, 'punto-fuga', dimTesto, f.nome));
+
+    svg.appendChild(g);
+
+    const margine = dimTesto * 2.2;
+    svg.setAttribute('viewBox', [
+      riquadro.x0 - margine, riquadro.y0 - margine,
+      Math.max(riquadro.x1 - riquadro.x0 + 2 * margine, 1),
+      Math.max(riquadro.y1 - riquadro.y0 + 2 * margine, 1)
+    ].join(' '));
+    svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+  }
+
+  function puntiDiFuga(vista, alfaDeg) {
+    const fughe = [];
+    direzioniDiFuga(alfaDeg).forEach((d, i) => {
+      const p = vista.puntoDiFuga(d.u);
+      if (!p) return; // direzione parallela al quadro: non ha punto di fuga
+      // nella prospettiva centrale la fuga cade nel punto principale
+      const coincidePP = Math.abs(p[0] - vista.x) < 1e-6 && Math.abs(p[1] + vista.altezza) < 1e-6;
+      fughe.push({ p: p, nome: d.nome, etichetta: i === 0 ? 'F₁' : 'F₂', direzione: d.u, coincidePP: coincidePP });
+    });
+    return fughe;
+  }
+
+  function disegnaLineeDiFuga(gruppo, solido, vista, fughe, opzioni) {
+    const topo = Geo.costruisciTopologia(solido);
+    const usati = new Map();
+    for (const s of topo.spigoli) {
+      if (!s.netto) continue;
+      const A = solido.vertici[s.a], B = solido.vertici[s.b];
+      const dir = Geo.normalize(Geo.sub(B, A));
+      if (Math.abs(dir[2]) > 1e-6) continue; // solo gli spigoli orizzontali fuggono
+      for (const f of fughe) {
+        const allineato = Math.abs(Math.abs(Geo.dot(dir, f.direzione)) - 1) < 1e-4;
+        if (!allineato) continue;
+        const conteggio = usati.get(f.nome) || 0;
+        if (conteggio >= 6) continue;
+        usati.set(f.nome, conteggio + 1);
+        // si prolunga dallo spigolo fino al suo punto di fuga
+        const lontano = Geo.length(Geo.sub(vista.puntoDiVista, A)) > Geo.length(Geo.sub(vista.puntoDiVista, B)) ? A : B;
+        const p = vista.project(lontano);
+        gruppo.appendChild(linea(p[0], p[1], f.p[0], f.p[1], 'linea-fuga'));
+      }
+    }
+  }
+
+  function puntoTrascinabile(gruppo, p, testo, classe, dimTesto, nome) {
+    const g = el('g', { class: 'trascinabile-punto', 'data-punto': nome });
+    // area di presa più ampia del punto disegnato, per l'uso con il dito
+    g.appendChild(el('circle', { cx: p[0], cy: p[1], r: dimTesto * 1.6, class: 'area-presa' }));
+    g.appendChild(el('circle', { cx: p[0], cy: p[1], r: dimTesto * 0.28, class: classe }));
+    const t = el('text', { x: p[0] + dimTesto * 0.4, y: p[1] - dimTesto * 0.5, class: 'etichetta-punto', 'font-size': dimTesto });
+    t.textContent = testo;
+    g.appendChild(t);
+    gruppo.appendChild(g);
+  }
+
+  function etichetta(gruppo, testo, x, y, classe, dimensione) {
+    const t = el('text', { x: x, y: y, class: classe, 'font-size': dimensione });
+    t.textContent = testo;
+    gruppo.appendChild(t);
+  }
+
   // --- Assonometria ---
 
   function disegnaAssonometria(svg, solido, vista, opzioni) {
@@ -355,6 +524,8 @@ const Disegno = (function () {
   return {
     disegnaProiezioniOrtogonali,
     disegnaAssonometria,
+    disegnaProspettiva,
+    puntiDiFuga,
     segmentiProiettati,
     limiti
   };

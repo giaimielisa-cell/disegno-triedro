@@ -9,6 +9,7 @@ const Esploratore = (function () {
     inclinato: false,
     scheda: 'ortogonali',
     assonometria: { tipo: 'libera', yaw: Geo.deg2rad(35), pitch: Geo.deg2rad(25) },
+    prospettiva: { tipo: 'centrale', distanza: 140, altezza: 45, alfa: 45, x: 0 },
     confronto: false,
     mostraNelloStretto: 'a',
     vistaSingola: 'prospetto',
@@ -20,7 +21,9 @@ const Esploratore = (function () {
       griglia: false,
       richiami: true,
       piani: false,
-      resa: 'wireframe'
+      resa: 'wireframe',
+      lineeDiFuga: true,
+      inquadraFughe: true
     }
   };
 
@@ -50,15 +53,19 @@ const Esploratore = (function () {
       letturaAssi: document.getElementById('lettura-assi'),
       notaAssonometria: document.getElementById('nota-assonometria'),
       alternanza: document.getElementById('alternanza'),
-      pulsantiAsso: document.querySelectorAll('.pulsanti-tipo button'),
+      pulsantiAsso: document.querySelectorAll('[data-asso]'),
       selettoreVista: document.getElementById('selettore-vista'),
-      schema: document.getElementById('schema-disposizione')
+      schema: document.getElementById('schema-disposizione'),
+      pulsantiProsp: document.querySelectorAll('[data-prosp]'),
+      cursoreAlfa: document.getElementById('cursore-alfa')
     };
 
     riempiElencoSolidi();
     collegaComandi();
     abilitaRotazione(el.telaA, el.svgA, () => schedaDelRiquadro('a'));
     abilitaRotazione(el.telaB, el.svgB, () => schedaDelRiquadro('b'));
+    abilitaTrascinamentoProspettiva(el.svgA, () => schedaDelRiquadro('a'));
+    abilitaTrascinamentoProspettiva(el.svgB, () => schedaDelRiquadro('b'));
     schermoStretto.addEventListener('change', aggiorna);
     window.addEventListener('resize', ridisegnaDifferito);
     aggiorna();
@@ -122,6 +129,31 @@ const Esploratore = (function () {
       aggiorna();
     });
 
+    ['distanza', 'altezza', 'alfa'].forEach(nome => {
+      const cursore = document.getElementById('pv-' + nome);
+      const valore = document.getElementById('val-pv-' + nome);
+      cursore.addEventListener('input', () => {
+        stato.prospettiva[nome] = Number(cursore.value);
+        valore.textContent = cursore.value;
+        aggiorna();
+      });
+    });
+
+    el.pulsantiProsp.forEach(b => b.addEventListener('click', () => {
+      stato.prospettiva.tipo = b.dataset.prosp;
+      aggiorna();
+    }));
+
+    document.getElementById('opz-fughe').addEventListener('change', e => {
+      stato.opzioni.lineeDiFuga = e.target.checked;
+      aggiorna();
+    });
+
+    document.getElementById('opz-inquadra-fughe').addEventListener('change', e => {
+      stato.opzioni.inquadraFughe = e.target.checked;
+      aggiorna();
+    });
+
     el.pulsantiAsso.forEach(b => b.addEventListener('click', () => {
       stato.assonometria.tipo = b.dataset.asso;
       aggiorna();
@@ -151,11 +183,21 @@ const Esploratore = (function () {
     return Geo.vistaAssonometricaDiretta(Geo.TIPI_ASSONOMETRIA[a.tipo]);
   }
 
+  function alfaCorrente() {
+    return stato.prospettiva.tipo === 'centrale' ? 0 : stato.prospettiva.alfa;
+  }
+
+  function vistaProspettica() {
+    const p = stato.prospettiva;
+    return Geo.vistaProspettica({ x: p.x, distanza: p.distanza, altezza: p.altezza, tipo: p.tipo });
+  }
+
   // Quale metodo mostra un riquadro: senza confronto solo il riquadro A, con
   // il confronto A = proiezioni ortogonali e B = assonometria.
   function schedaDelRiquadro(riquadro) {
-    if (!stato.confronto) return riquadro === 'a' ? stato.scheda : null;
-    return riquadro === 'a' ? 'ortogonali' : 'assonometria';
+    if (riquadro === 'a') return stato.scheda;
+    if (!stato.confronto) return null;
+    return stato.scheda === 'assonometria' ? 'ortogonali' : 'assonometria';
   }
 
   function abilitaRotazione(tela, svg, schedaDi) {
@@ -198,6 +240,70 @@ const Esploratore = (function () {
     svg.addEventListener('pointercancel', fine);
   }
 
+  // Trascinamento della linea d'orizzonte, del punto principale e dei punti
+  // di fuga direttamente nel disegno prospettico.
+  function abilitaTrascinamentoProspettiva(svg, schedaDi) {
+    let elementoTrascinato = null;
+
+    function coordinateNelDisegno(e) {
+      const ctm = svg.getScreenCTM();
+      if (!ctm) return null;
+      const punto = svg.createSVGPoint();
+      punto.x = e.clientX;
+      punto.y = e.clientY;
+      return punto.matrixTransform(ctm.inverse());
+    }
+
+    svg.addEventListener('pointerdown', e => {
+      if (schedaDi() !== 'prospettiva') return;
+      const nodo = e.target.closest('[data-punto]');
+      if (!nodo) return;
+      elementoTrascinato = nodo.dataset.punto;
+      svg.setPointerCapture(e.pointerId);
+      e.preventDefault();
+    });
+
+    svg.addEventListener('pointermove', e => {
+      if (!elementoTrascinato) return;
+      const p = coordinateNelDisegno(e);
+      if (!p) return;
+      e.preventDefault();
+      const prospettiva = stato.prospettiva;
+      if (elementoTrascinato === 'orizzonte') {
+        prospettiva.altezza = Math.max(0, Math.min(160, Math.round(-p.y)));
+      } else if (elementoTrascinato === 'punto-principale') {
+        prospettiva.x = Math.max(-300, Math.min(300, Math.round(p.x)));
+      } else {
+        // spostando un punto di fuga cambia l'angolo di rotazione del solido;
+        // l'altro punto di fuga si sposta di conseguenza
+        const scarto = p.x - prospettiva.x;
+        const alfa = elementoTrascinato === 'F1'
+          ? Geo.rad2deg(Math.atan2(prospettiva.distanza, scarto))
+          : Geo.rad2deg(Math.atan2(-scarto, prospettiva.distanza));
+        prospettiva.alfa = Math.max(5, Math.min(85, Math.round(alfa)));
+        if (prospettiva.tipo !== 'accidentale') prospettiva.tipo = 'accidentale';
+      }
+      sincronizzaComandiProspettiva();
+      aggiorna();
+    });
+
+    const fine = e => {
+      if (!elementoTrascinato) return;
+      elementoTrascinato = null;
+      if (svg.hasPointerCapture && svg.hasPointerCapture(e.pointerId)) svg.releasePointerCapture(e.pointerId);
+    };
+    svg.addEventListener('pointerup', fine);
+    svg.addEventListener('pointercancel', fine);
+  }
+
+  function sincronizzaComandiProspettiva() {
+    const p = stato.prospettiva;
+    ['distanza', 'altezza', 'alfa'].forEach(nome => {
+      document.getElementById('pv-' + nome).value = p[nome];
+      document.getElementById('val-pv-' + nome).textContent = p[nome];
+    });
+  }
+
   let attesaRidisegno = null;
   function ridisegnaDifferito() {
     clearTimeout(attesaRidisegno);
@@ -209,6 +315,8 @@ const Esploratore = (function () {
 
     el.schede.forEach(b => b.classList.toggle('attivo', b.dataset.scheda === stato.scheda));
     el.pulsantiAsso.forEach(b => b.classList.toggle('attivo', b.dataset.asso === stato.assonometria.tipo));
+    el.pulsantiProsp.forEach(b => b.classList.toggle('attivo', b.dataset.prosp === stato.prospettiva.tipo));
+    el.cursoreAlfa.hidden = stato.prospettiva.tipo === 'centrale';
 
     const stretto = schermoStretto.matches;
     const schedaA = schedaDelRiquadro('a');
@@ -250,6 +358,14 @@ const Esploratore = (function () {
       const etichetta = vista.tipo === 'libera' ? 'rotazione libera' : 'assonometria ' + vista.tipo;
       didascalia.textContent = 'Assonometria (' + etichetta + ') · ' + solido.nome;
       Disegno.disegnaAssonometria(svg, solido, vista, stato.opzioni);
+    } else if (scheda === 'prospettiva') {
+      const vista = vistaProspettica();
+      const opzioni = Object.assign({}, stato.opzioni, {
+        posizione: stato.posizione,
+        alfa: alfaCorrente()
+      });
+      didascalia.textContent = 'Prospettiva ' + stato.prospettiva.tipo + ' · ' + solido.nome;
+      Disegno.disegnaProspettiva(svg, solido, vista, opzioni);
     }
   }
 

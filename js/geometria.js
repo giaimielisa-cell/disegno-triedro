@@ -99,17 +99,25 @@ const Geo = (function () {
     return solido._topologia;
   }
 
-  // Spigoli da tracciare in una data direzione di vista: quelli netti, più i
-  // contorni apparenti delle superfici curve.
-  function spigoliDaTracciare(solido, viewDir) {
+  // Direzione che da un punto va verso l'osservatore: nelle proiezioni
+  // parallele è sempre la stessa, in prospettiva dipende dal punto.
+  function versoOsservatore(vista, punto) {
+    if (vista.puntoDiVista) return normalize(sub(vista.puntoDiVista, punto));
+    return scale(normalize(vista.viewDir), -1);
+  }
+
+  // Spigoli da tracciare in una vista: quelli netti, più i contorni apparenti
+  // delle superfici curve.
+  function spigoliDaTracciare(solido, vista) {
     const topo = costruisciTopologia(solido);
-    const V = normalize(viewDir);
     const out = [];
     for (const s of topo.spigoli) {
       if (s.netto) { out.push([s.a, s.b]); continue; }
       if (s.facce.length === 2) {
-        const d1 = dot(topo.normali[s.facce[0]], V);
-        const d2 = dot(topo.normali[s.facce[1]], V);
+        const meta = scale(add(solido.vertici[s.a], solido.vertici[s.b]), 0.5);
+        const verso = versoOsservatore(vista, meta);
+        const d1 = dot(topo.normali[s.facce[0]], verso);
+        const d2 = dot(topo.normali[s.facce[1]], verso);
         if ((d1 > 0) !== (d2 > 0)) out.push([s.a, s.b]); // contorno apparente
       }
     }
@@ -122,41 +130,42 @@ const Geo = (function () {
     return max || 1;
   }
 
-  // Suddivide ogni spigolo in tratti visibili e nascosti rispetto alla
-  // direzione di vista. Ritorna segmenti 3D { a, b, nascosto }.
-  function segmentiVisibilita(solido, spigoli, viewDir, campioni) {
-    campioni = campioni || 24;
-    const V = normalize(viewDir);
+  // Suddivide ogni spigolo in tratti visibili e nascosti. Vale sia per le
+  // proiezioni parallele sia per la prospettiva: cambia solo il raggio visivo,
+  // che nel secondo caso parte dal punto di vista.
+  function segmentiVisibilita(solido, spigoli, vista, campioni) {
     const vertici = solido.vertici;
     const tol = dimensioneCaratteristica(vertici);
-
-    const refUp = Math.abs(V[2]) < 0.9 ? [0, 0, 1] : [1, 0, 0];
-    const baseU = normalize(cross(refUp, V));
-    const baseW = cross(V, baseU);
-    const a2 = p => [dot(p, baseU), dot(p, baseW)];
+    campioni = campioni || (solido.facce.length > 60 ? 14 : 24);
 
     const normali = normaliFacce(solido);
-    // I poligoni delle facce vengono leggermente rimpiccioliti verso il loro
-    // centro: così uno spigolo che giace esattamente sul bordo di una faccia
-    // non risulta nascosto da quella faccia.
+    // Ogni faccia viene descritta sul proprio piano e leggermente rimpicciolita
+    // verso il centro: così uno spigolo che giace esattamente sul bordo di una
+    // faccia non risulta nascosto da quella faccia.
     const margine = 1e-3 * tol;
-    const facce2D = solido.facce.map((f, i) => {
-      const punti = f.map(k => a2(vertici[k]));
+    const facce = solido.facce.map((f, i) => {
+      const N = normali[i];
+      const p0 = vertici[f[0]];
+      const rif = Math.abs(N[2]) < 0.9 ? [0, 0, 1] : [1, 0, 0];
+      const u = normalize(cross(rif, N));
+      const w = cross(N, u);
+      const punti = f.map(k => [dot(sub(vertici[k], p0), u), dot(sub(vertici[k], p0), w)]);
       const cx = punti.reduce((s, p) => s + p[0], 0) / punti.length;
       const cy = punti.reduce((s, p) => s + p[1], 0) / punti.length;
+      const ridotti = punti.map(p => {
+        const dx = p[0] - cx, dy = p[1] - cy;
+        const d = Math.hypot(dx, dy) || 1;
+        const r = Math.max(0, d - margine) / d;
+        return [cx + dx * r, cy + dy * r];
+      });
       return {
-        normale: normali[i],
-        p0: vertici[f[0]],
-        poligono2D: punti.map(p => {
-          const dx = p[0] - cx, dy = p[1] - cy;
-          const d = Math.hypot(dx, dy) || 1;
-          const r = Math.max(0, d - margine) / d;
-          return [cx + dx * r, cy + dy * r];
-        })
+        normale: N, p0: p0, u: u, w: w, poligono: ridotti,
+        minX: Math.min(...ridotti.map(p => p[0])), maxX: Math.max(...ridotti.map(p => p[0])),
+        minY: Math.min(...ridotti.map(p => p[1])), maxY: Math.max(...ridotti.map(p => p[1]))
       };
     });
 
-    function puntoInPoligono2D(p, poligono) {
+    function puntoInPoligono(p, poligono) {
       let dentro = false;
       for (let i = 0, j = poligono.length - 1; i < poligono.length; j = i++) {
         const xi = poligono[i][0], yi = poligono[i][1];
@@ -167,14 +176,21 @@ const Geo = (function () {
       return dentro;
     }
 
-    // P è nascosto se, risalendo da P verso l'osservatore, si incontra una faccia.
+    // P è nascosto se, risalendo il raggio visivo da P verso l'osservatore, si
+    // incontra una faccia del solido.
     function occluso(P) {
-      for (const f of facce2D) {
-        const nv = dot(f.normale, V);
-        if (Math.abs(nv) < 1e-6) continue;            // faccia di taglio: non occlude
-        const s = dot(sub(P, f.p0), f.normale) / nv;  // distanza verso l'osservatore
-        if (s < 1e-3 * tol) continue;                 // la faccia non sta davanti a P
-        if (puntoInPoligono2D(a2(P), f.poligono2D)) return true;
+      const verso = versoOsservatore(vista, P);
+      const distanzaOsservatore = vista.puntoDiVista ? length(sub(vista.puntoDiVista, P)) : Infinity;
+      for (const f of facce) {
+        const nv = dot(f.normale, verso);
+        if (Math.abs(nv) < 1e-6) continue;             // faccia di taglio: non occlude
+        const s = dot(sub(f.p0, P), f.normale) / nv;   // percorso fino al piano della faccia
+        if (s < 1e-3 * tol || s > distanzaOsservatore) continue;
+        const Q = add(P, scale(verso, s));
+        const d = sub(Q, f.p0);
+        const q = [dot(d, f.u), dot(d, f.w)];
+        if (q[0] < f.minX || q[0] > f.maxX || q[1] < f.minY || q[1] > f.maxY) continue;
+        if (puntoInPoligono(q, f.poligono)) return true;
       }
       return false;
     }
@@ -188,7 +204,7 @@ const Geo = (function () {
       const vis = [];
       for (let i = 0; i < campioni; i++) {
         const P = add(A, scale(sub(B, A), (i + 0.5) / campioni));
-        vis.push(!occluso(sub(P, scale(V, 1e-3 * tol))));
+        vis.push(!occluso(add(P, scale(versoOsservatore(vista, P), 1e-3 * tol))));
       }
       let inizio = 0;
       for (let i = 1; i <= campioni; i++) {
@@ -304,13 +320,41 @@ const Geo = (function () {
     };
   }
 
+  // --- Prospettiva ---
+  // Il quadro coincide con il piano verticale (y = 0); l'osservatore sta a
+  // distanza "distanza" davanti al quadro, all'altezza "altezza" sul piano
+  // orizzontale. Un punto del quadro si proietta in vera grandezza, la linea
+  // d'orizzonte sta all'altezza dell'occhio.
+  function vistaProspettica(cfg) {
+    const O = [cfg.x, -cfg.distanza, cfg.altezza];
+    function project(P) {
+      const t = cfg.distanza / (P[1] + cfg.distanza);
+      return [O[0] + t * (P[0] - O[0]), -(O[2] + t * (P[2] - O[2]))];
+    }
+    return {
+      nome: 'prospettiva',
+      tipo: cfg.tipo,
+      puntoDiVista: O,
+      distanza: cfg.distanza,
+      altezza: cfg.altezza,
+      x: cfg.x,
+      project: project,
+      // punto di fuga di una direzione orizzontale (uy deve essere positivo)
+      puntoDiFuga: function (u) {
+        if (Math.abs(u[1]) < 1e-9) return null; // direzione parallela al quadro
+        return [O[0] + cfg.distanza * u[0] / u[1], -(O[2] + cfg.distanza * u[2] / u[1])];
+      }
+    };
+  }
+
   return {
     sub, add, scale, dot, cross, length, normalize,
     matVec, matMul, rotX, rotY, rotZ,
     deg2rad, rad2deg,
-    normaleFaccia, normaliFacce,
+    normaleFaccia, normaliFacce, versoOsservatore,
     costruisciTopologia, spigoliDaTracciare, segmentiVisibilita,
     vistaOrtogonale, vistaAssonometricaDiretta, vistaAssonometricaLibera,
+    vistaProspettica,
     TIPI_ASSONOMETRIA
   };
 })();

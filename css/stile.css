@@ -188,6 +188,26 @@ section { flex: 1; display: flex; flex-direction: column; min-height: 0; padding
   vector-effect: non-scaling-stroke;
 }
 .griglia { stroke: #dedbd2; stroke-width: 1; vector-effect: non-scaling-stroke; }
+
+.linea-orizzonte {
+  stroke: var(--blu);
+  stroke-width: 1.4;
+  vector-effect: non-scaling-stroke;
+}
+.linea-fuga {
+  stroke: var(--evidenza);
+  stroke-width: 1;
+  stroke-dasharray: 5 4;
+  stroke-opacity: 0.75;
+  vector-effect: non-scaling-stroke;
+}
+.punto-vista { fill: var(--blu); stroke: none; }
+.punto-fuga { fill: var(--evidenza); stroke: none; }
+.area-presa { fill: transparent; }
+.area-presa-orizzonte { stroke: transparent; cursor: ns-resize; }
+.trascinabile-punto { cursor: ew-resize; }
+.etichetta-punto { fill: var(--inchiostro); font-weight: 700; }
+.etichetta-orizzonte { fill: var(--blu); }
 .piano-proiezione { fill: var(--blu-chiaro); fill-opacity: 0.35; stroke: var(--blu); stroke-width: 1; stroke-dasharray: 4 3; vector-effect: non-scaling-stroke; }
 .faccia { stroke: none; }
 
