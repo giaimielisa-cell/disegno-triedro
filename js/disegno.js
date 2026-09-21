@@ -139,6 +139,70 @@ const Disegno = (function () {
     return { larghezza: x1 - x0, altezza: y1 - y0 };
   }
 
+  // Ribaltamento della sezione sul P.O. nelle proiezioni ortogonali: la figura
+  // arriva in vera grandezza nella posizione che le assegna la costruzione,
+  // legata alla pianta dalle rette perpendicolari alla traccia.
+  function disegnaRibaltamento(gruppo, solido, dimensione, dimTesto) {
+    const anelli = solido.anelli;
+    if (!anelli || !anelli.length) return false;
+    const b = limiti(solido);
+    const centro = [(b.x0 + b.x1) / 2, (b.y0 + b.y1) / 2, (b.z0 + b.z1) / 2];
+    const r = Sezione.ribaltamentoSulPO(anelli, centro);
+    if (!r) return false;
+
+    // se la cerniera cade lontanissima (piano quasi orizzontale) il disegno
+    // diventerebbe enorme: in quel caso si rinuncia al ribaltamento
+    const distanzaCerniera = Math.abs(Geo.dot(Geo.sub(centro, r.cerniera.punto),
+      Geo.normalize(Geo.cross([0, 0, 1], r.cerniera.direzione))));
+    if (distanzaCerniera > dimensione * 4) return false;
+
+    const pianta = Geo.vistaOrtogonale('pianta');
+    const g = el('g', { class: 'ribaltamento-sezione' });
+
+    // la traccia del piano sul P.O., cerniera della rotazione
+    const estensione = dimensione * 1.4;
+    const a1 = Geo.add(r.cerniera.punto, Geo.scale(r.cerniera.direzione, -estensione));
+    const a2 = Geo.add(r.cerniera.punto, Geo.scale(r.cerniera.direzione, estensione));
+    const pa1 = pianta.project(a1), pa2 = pianta.project(a2);
+    g.appendChild(linea(pa1[0], pa1[1], pa2[0], pa2[1], 'traccia-piano'));
+    const t = el('text', {
+      x: pa2[0] + dimTesto * 0.3, y: pa2[1], class: 'nota-disegno', 'font-size': dimTesto * 0.9
+    });
+    t.textContent = 'traccia del piano (cerniera)';
+    g.appendChild(t);
+
+    // rette di ribaltamento: ogni punto si sposta perpendicolarmente alla traccia
+    const passo = Math.max(1, Math.ceil(anelli[0].length / 12));
+    anelli.forEach((anello, i) => {
+      const ribaltato = r.anelli[i];
+      for (let k = 0; k < anello.length; k += passo) {
+        const p1 = pianta.project(anello[k]);
+        const p2 = pianta.project(ribaltato[k]);
+        g.appendChild(linea(p1[0], p1[1], p2[0], p2[1], 'richiamo'));
+      }
+    });
+
+    const anelli2D = r.anelli.map(a => a.map(p => pianta.project(p)));
+    disegnaTratteggio(g, anelli2D, dimensione * 0.05);
+    for (const anello of anelli2D) {
+      g.appendChild(el('polygon', {
+        points: anello.map(p => p[0].toFixed(2) + ',' + p[1].toFixed(2)).join(' '),
+        class: 'contorno-ribaltato'
+      }));
+    }
+
+    const centroRibaltato = anelli2D[0].reduce((s, p) => [s[0] + p[0], s[1] + p[1]], [0, 0])
+      .map(c => c / anelli2D[0].length);
+    const titolo = el('text', {
+      x: centroRibaltato[0], y: Math.max(...anelli2D[0].map(p => p[1])) + dimTesto * 1.4,
+      class: 'titolo-vista', 'font-size': dimTesto, 'text-anchor': 'middle'
+    });
+    titolo.textContent = 'sezione ribaltata in vera forma';
+    g.appendChild(titolo);
+    gruppo.appendChild(g);
+    return true;
+  }
+
   // --- Segmenti proiettati di un solido in una vista ---
 
   function segmentiProiettati(solido, vista) {
@@ -394,11 +458,32 @@ const Disegno = (function () {
       g.appendChild(gv);
       g.appendChild(titoloVista(vista, b, dimTesto, margine));
     }
-    if (solido.anelli && opzioni.sezione.veraForma) {
-      disegnaVeraForma(g, solido.anelli, [b.y1 + margine * 3, -b.z1], dimensione, dimTesto);
+    if (solido.anelli && opzioni.sezione.veraForma && !singola) {
+      // se il piano è parallelo a un piano di proiezione la sezione è già in
+      // vera forma su quella vista e il ribaltamento non serve; altrimenti si
+      // ribalta attorno alla traccia del piano sul P.O.
+      const dove = vistaInVeraForma(opzioni.sezione.tipo);
+      if (dove) {
+        const nota = el('text', {
+          x: b.x0, y: b.y1 + margine * 1.6, class: 'nota-disegno', 'font-size': dimTesto
+        });
+        nota.textContent = 'La sezione è già in vera forma ' + dove + '.';
+        g.appendChild(nota);
+      } else if (!disegnaRibaltamento(g, solido, dimensione, dimTesto)) {
+        disegnaVeraForma(g, solido.anelli, [b.y1 + margine * 3, -b.z1], dimensione, dimTesto);
+      }
     }
     svg.appendChild(g);
     adattaViewBox(svg, g, margine);
+  }
+
+  // Un piano parallelo a un piano di proiezione dà la sezione in vera forma
+  // sulla vista corrispondente, senza bisogno di ribaltamenti.
+  function vistaInVeraForma(tipoPiano) {
+    if (tipoPiano === 'orizzontale') return 'nella pianta';
+    if (tipoPiano === 'verticale') return 'nel prospetto';
+    if (tipoPiano === 'profilo') return 'nella vista laterale';
+    return null;
   }
 
   function titoloVista(vista, b, dimTesto, margine) {

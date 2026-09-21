@@ -216,6 +216,12 @@ section { flex: 1; display: flex; flex-direction: column; min-height: 0; padding
   stroke-dasharray: 10 3 2 3;
   vector-effect: non-scaling-stroke;
 }
+.traccia-piano {
+  stroke: var(--evidenza);
+  stroke-width: 1.6;
+  stroke-dasharray: 12 3 2 3;
+  vector-effect: non-scaling-stroke;
+}
 .tratteggio-sezione {
   stroke: var(--inchiostro);
   stroke-width: 0.8;
@@ -228,6 +234,15 @@ section { flex: 1; display: flex; flex-direction: column; min-height: 0; padding
   stroke-linejoin: round;
   vector-effect: non-scaling-stroke;
 }
+/* la sezione ribaltata si traccia con linea continua fine */
+.contorno-ribaltato {
+  fill: none;
+  stroke: var(--inchiostro);
+  stroke-width: 1.1;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+.ribaltamento-sezione .tratteggio-sezione { stroke: var(--inchiostro-tenue); stroke-width: 0.6; }
 .piano-proiezione { fill: var(--blu-chiaro); fill-opacity: 0.35; stroke: var(--blu); stroke-width: 1; stroke-dasharray: 4 3; vector-effect: non-scaling-stroke; }
 .faccia { stroke: none; }
 

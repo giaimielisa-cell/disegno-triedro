@@ -187,6 +187,39 @@ const Sezione = (function () {
     }));
   }
 
+  // Ribaltamento del piano di sezione sul piano orizzontale, attorno alla
+  // propria traccia: ogni punto ruota conservando la distanza dalla cerniera,
+  // così la figura arriva sul foglio in vera grandezza e nella posizione che
+  // la costruzione le assegna.
+  function ribaltamentoSulPO(anelli, centroSolido) {
+    if (!anelli.length) return null;
+    const n = Geo.normaleFaccia(anelli[0]);
+    const orizzontale = Math.abs(n[2]);
+    if (orizzontale > 0.999) return null;   // piano parallelo al P.O.: già in vera forma
+    const d = Geo.dot(n, anelli[0][0]);
+    const u = Geo.normalize(Geo.cross(n, [0, 0, 1]));   // direzione della cerniera
+    const denominatore = n[0] * n[0] + n[1] * n[1];
+    const k = d / denominatore;
+    const p0 = [k * n[0], k * n[1], 0];                  // un punto della cerniera
+    const dentroIlPiano = Geo.normalize(Geo.cross(u, n));
+    const orizzontalePerp = Geo.normalize(Geo.cross([0, 0, 1], u));
+
+    // il piano ruota verso il lato in cui si trova il solido: la figura arriva
+    // oltre la pianta, perché ogni punto conserva la distanza vera dalla
+    // cerniera, sempre maggiore di quella che si legge in pianta
+    const scarto = Geo.dot(Geo.sub(centroSolido, p0), orizzontalePerp);
+    const verso = scarto >= 0 ? 1 : -1;
+
+    const ribaltati = anelli.map(anello => anello.map(P => {
+      const v = Geo.sub(P, p0);
+      const lungo = Geo.dot(v, u);
+      const distanza = Geo.dot(v, dentroIlPiano);
+      return Geo.add(Geo.add(p0, Geo.scale(u, lungo)), Geo.scale(orizzontalePerp, distanza * verso));
+    }));
+
+    return { anelli: ribaltati, cerniera: { punto: p0, direzione: u } };
+  }
+
   // Rettangolo che rappresenta il piano di sezione, esteso attorno al solido.
   function rettangoloDelPiano(p, margine) {
     const b = p.limiti;
@@ -206,5 +239,5 @@ const Sezione = (function () {
     ];
   }
 
-  return { piano, taglia, veraForma, rettangoloDelPiano };
+  return { piano, taglia, veraForma, ribaltamentoSulPO, rettangoloDelPiano };
 })();
