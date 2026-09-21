@@ -171,18 +171,26 @@ const Disegno = (function () {
     t.textContent = 'traccia del piano (cerniera)';
     g.appendChild(t);
 
+    // La figura ribaltata viene allontanata lungo la stessa perpendicolare,
+    // quanto basta perché non si sovrapponga alle viste: la costruzione non
+    // cambia, restano perpendicolari alla cerniera anche le rette di richiamo.
+    const fineViste = Math.max(...solido.vertici.map(v => Geo.dot(v, r.perpendicolare)));
+    const inizioFigura = Math.min(...[].concat.apply([], r.anelli).map(p => Geo.dot(p, r.perpendicolare)));
+    const scostamento = Math.max(0, fineViste + dimensione * 0.35 - inizioFigura);
+    const spostamento = Geo.scale(r.perpendicolare, scostamento);
+    const ribaltati = r.anelli.map(a => a.map(p => Geo.add(p, spostamento)));
+
     // rette di ribaltamento: ogni punto si sposta perpendicolarmente alla traccia
     const passo = Math.max(1, Math.ceil(anelli[0].length / 12));
     anelli.forEach((anello, i) => {
-      const ribaltato = r.anelli[i];
       for (let k = 0; k < anello.length; k += passo) {
         const p1 = pianta.project(anello[k]);
-        const p2 = pianta.project(ribaltato[k]);
+        const p2 = pianta.project(ribaltati[i][k]);
         g.appendChild(linea(p1[0], p1[1], p2[0], p2[1], 'richiamo'));
       }
     });
 
-    const anelli2D = r.anelli.map(a => a.map(p => pianta.project(p)));
+    const anelli2D = ribaltati.map(a => a.map(p => pianta.project(p)));
     disegnaTratteggio(g, anelli2D, dimensione * 0.05);
     for (const anello of anelli2D) {
       g.appendChild(el('polygon', {
@@ -197,7 +205,9 @@ const Disegno = (function () {
       x: centroRibaltato[0], y: Math.max(...anelli2D[0].map(p => p[1])) + dimTesto * 1.4,
       class: 'titolo-vista', 'font-size': dimTesto, 'text-anchor': 'middle'
     });
-    titolo.textContent = 'sezione ribaltata in vera forma';
+    titolo.textContent = scostamento > 0
+      ? 'sezione ribaltata in vera forma (allontanata per chiarezza)'
+      : 'sezione ribaltata in vera forma';
     g.appendChild(titolo);
     gruppo.appendChild(g);
     return true;

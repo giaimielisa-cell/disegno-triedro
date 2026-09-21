@@ -217,7 +217,12 @@ const Sezione = (function () {
       return Geo.add(Geo.add(p0, Geo.scale(u, lungo)), Geo.scale(orizzontalePerp, distanza * verso));
     }));
 
-    return { anelli: ribaltati, cerniera: { punto: p0, direzione: u } };
+    return {
+      anelli: ribaltati,
+      cerniera: { punto: p0, direzione: u },
+      // direzione, perpendicolare alla cerniera, lungo cui i punti si ribaltano
+      perpendicolare: Geo.scale(orizzontalePerp, verso)
+    };
   }
 
   // Rettangolo che rappresenta il piano di sezione, esteso attorno al solido.
