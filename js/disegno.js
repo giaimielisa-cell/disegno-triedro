@@ -394,22 +394,36 @@ const Disegno = (function () {
       const profondita = vista.puntoDiVista
         ? -Geo.length(Geo.sub(vista.puntoDiVista, centro))
         : Geo.dot(centro, Geo.normalize(vista.viewDir));
-      return { indici: f, normale: normali[i], profondita: profondita, davanti: Geo.dot(normali[i], verso) > 0 };
+      return {
+        indici: f, normale: normali[i], profondita: profondita,
+        tagliata: !!(solido.facceTagliate && solido.facceTagliate[i]),
+        davanti: Geo.dot(normali[i], verso) > 0
+      };
     }).filter(f => f.davanti);
     facce.sort((a, b) => b.profondita - a.profondita);
     for (const f of facce) {
       const luce = Math.max(0, Geo.dot(f.normale, LUCE));
-      const tono = Math.round(212 - 62 * luce);
       const punti = f.indici.map(k => {
         const p = vista.project(solido.vertici[k]);
         return (p[0] + off[0]).toFixed(2) + ',' + (p[1] + off[1]).toFixed(2);
       }).join(' ');
       gruppo.appendChild(el('polygon', {
         points: punti,
-        fill: 'rgb(' + tono + ',' + tono + ',' + (tono + 6) + ')',
-        class: 'faccia'
+        fill: coloreFaccia(luce, f.tagliata),
+        class: f.tagliata ? 'faccia faccia-tagliata' : 'faccia'
       }));
     }
+  }
+
+  // La superficie tagliata dal piano di sezione si distingue dalle altre:
+  // stesso chiaroscuro, ma in tinta calda, come il tratteggio della sezione.
+  function coloreFaccia(luce, tagliata) {
+    if (tagliata) {
+      return 'rgb(' + Math.round(224 - 50 * luce) + ',' +
+        Math.round(152 - 60 * luce) + ',' + Math.round(124 - 56 * luce) + ')';
+    }
+    const tono = Math.round(212 - 62 * luce);
+    return 'rgb(' + tono + ',' + tono + ',' + (tono + 6) + ')';
   }
 
   // Notazione del disegno tecnico: A' è la prima proiezione (sul P.O.),
@@ -554,6 +568,7 @@ const Disegno = (function () {
       categoria: solido.categoria,
       vertici: solido.vertici.map(trasla),
       facce: solido.facce,
+      facceTagliate: solido.facceTagliate,
       anelli: trasformaAnelli(solido.anelli, trasla),
       trasforma: trasla
     };
@@ -807,6 +822,7 @@ const Disegno = (function () {
       id: solido.id, nome: solido.nome, categoria: solido.categoria,
       vertici: ruotati.map(v => [v[0] - cx, v[1] - maxY - allontanamento, v[2] - minZ + quota]),
       facce: solido.facce,
+      facceTagliate: solido.facceTagliate,
       anelli: trasformaAnelli(solido.anelli, trasforma),
       trasforma: trasforma
     };

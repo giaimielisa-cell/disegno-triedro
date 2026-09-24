@@ -137,15 +137,18 @@ const Sezione = (function () {
     });
 
     const anelli = chiudiAnelli(segmenti).map(a => orientaAnello(a, p.n));
+    // le facce da qui in avanti sono quelle nuove, create dal taglio: servono
+    // a parte perché nella resa ombreggiata vanno di un altro colore
+    const primaDelTaglio = facceRitagliate.length;
     anelli.forEach(a => facceRitagliate.push(a));
 
-    const risultato = ricostruisci(solido, facceRitagliate, anelli);
+    const risultato = ricostruisci(solido, facceRitagliate, anelli, primaDelTaglio);
     solido._sezione = { chiave: chiave, risultato: risultato };
     return risultato;
   }
 
   // Ricompone vertici e facce unificando i punti coincidenti.
-  function ricostruisci(solido, facce, anelli) {
+  function ricostruisci(solido, facce, anelli, primaDelTaglio) {
     const vertici = [];
     const mappa = new Map();
     function indice(p) {
@@ -156,19 +159,24 @@ const Sezione = (function () {
       return vertici.length - 1;
     }
     const facceIndicizzate = [];
-    for (const f of facce) {
+    const facceTagliate = [];
+    facce.forEach((f, k) => {
       const indici = [];
       for (const p of f) {
         const i = indice(p);
         if (!indici.length || indici[indici.length - 1] !== i) indici.push(i);
       }
       if (indici.length > 2 && indici[0] === indici[indici.length - 1]) indici.pop();
-      if (indici.length >= 3) facceIndicizzate.push(indici);
-    }
+      if (indici.length >= 3) {
+        facceIndicizzate.push(indici);
+        facceTagliate.push(k >= primaDelTaglio);
+      }
+    });
     return {
       solido: {
         id: solido.id, nome: solido.nome, categoria: solido.categoria,
-        vertici: vertici, facce: facceIndicizzate, anelli: anelli
+        vertici: vertici, facce: facceIndicizzate, anelli: anelli,
+        facceTagliate: facceTagliate
       },
       anelli: anelli
     };
