@@ -1,26 +1,59 @@
-/* Aspetto sobrio da tavola di disegno tecnico: fondo chiaro, linee nere,
-   accenti blu. Comandi grandi, leggibili anche proiettati alla LIM. */
+/* Aspetto da tavola di disegno: fondo carta per l'involucro dell'applicazione,
+   bianco per l'area di disegno e per le barre dei selettori. Un colore per
+   ciascuna sezione e uno per ciascun metodo di rappresentazione.
+   Comandi grandi, leggibili anche proiettati alla LIM. */
 
 :root {
-  --carta: #f6f5f1;
-  --carta-chiara: #fffefb;
-  --inchiostro: #14161a;
-  --inchiostro-tenue: #5a6068;
+  --carta: #FAF6EE;
+  --carta-chiara: #ffffff;
+  --inchiostro: #2A2A28;
+  --inchiostro-tenue: #6b6b66;
+  --bordo: #e4ddcd;
+  --accento: #8C5A63;
+  --matita: #7a746a;
+
+  /* le sezioni dell'applicazione */
+  --sez-esploratore: #3E6068;
+  --sez-palestra: #A24E36;
+
+  /* i quattro metodi di rappresentazione */
+  --met-ortogonali: #5C7A8A;
+  --met-assonometria: #7C8B6E;
+  --met-prospettiva: #A98A3E;
+  --met-sezioni: #B8794F;
+
+  /* i tre piani del marchio */
+  --bianco-piano: #FCFAF5;
+  --grigio-piano: #B9B3A6;
+  --nero-piano: #2E2C28;
+
+  /* colori del disegno tecnico: restano quelli della tavola */
   --blu: #14457c;
   --blu-chiaro: #dbe6f2;
-  --bordo: #c9c6bd;
   --richiamo: #8a9bb0;
   --evidenza: #b4451f;
+  --griglia: #e6e2d8;
+
   --raggio: 9px;
   --spessore-grosso: 2px;
   --spessore-fine: 1px;
   /* i comandi devono lasciare il più possibile al disegno */
   --altezza-comando: 40px;
   --testo-comando: 0.92rem;
+
+  /* alta leggibilità: valori comandati dal pannello, uguali per tutto il sito */
+  --testo-base: 15px;
+  --interlinea: 1.4;
+  --spaziatura: 0px;
 }
 
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
+
+/* deposito dei disegni riusati: non occupa spazio nella pagina */
+.deposito-disegni { position: absolute; width: 0; height: 0; overflow: hidden; }
+
+html { font-size: var(--testo-base); }
 
 html, body {
   margin: 0;
@@ -28,13 +61,17 @@ html, body {
   height: 100%;
   background: var(--carta);
   color: var(--inchiostro);
-  font-family: "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
-  font-size: 15px;
-  line-height: 1.4;
+  font-family: "Atkinson Hyperlegible", "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+  line-height: var(--interlinea);
+  letter-spacing: var(--spaziatura);
   overscroll-behavior: none;
 }
 
-body { display: flex; flex-direction: column; }
+/* dentro il disegno la spaziatura resta quella normale: le etichette dei
+   vertici sono sigle brevi e collocate al millimetro */
+svg text { letter-spacing: normal; }
+
+body { display: flex; flex-direction: column; font-size: 1rem; }
 
 /* --- Barra superiore --- */
 
@@ -49,26 +86,43 @@ body { display: flex; flex-direction: column; }
   flex-wrap: nowrap;
 }
 
-.marchio { display: flex; align-items: center; gap: 10px; min-width: 0; }
-.logo svg { width: 26px; height: 26px; fill: none; stroke: var(--blu); stroke-width: 2; }
-.barra h1 { font-size: 1.15rem; margin: 0; letter-spacing: 0.06em; text-transform: uppercase; }
+/* marchio: il triedro affiancato al nome in stampatello */
+.marchio { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.logo svg { width: 38px; height: 38px; display: block; }
+.barra h1 {
+  font-size: 1.35rem; margin: 0; font-weight: 700;
+  letter-spacing: 1.5px; text-transform: uppercase; color: var(--inchiostro);
+}
 .sottotitolo {
   margin: 0; font-size: 0.76rem; color: var(--inchiostro-tenue);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
-.menu-principale { display: flex; gap: 6px; flex: none; }
+.menu-principale { display: flex; gap: 8px; flex: none; align-items: center; }
 .menu-principale button {
   font: inherit;
   font-size: var(--testo-comando);
-  padding: 6px 14px;
-  border: 1px solid var(--bordo);
-  background: var(--carta);
+  font-weight: 700;
+  padding: 6px 16px;
+  border: 1.5px solid var(--bordo);
+  background: var(--carta-chiara);
+  color: var(--inchiostro-tenue);
   border-radius: var(--raggio);
   cursor: pointer;
   min-height: var(--altezza-comando);
 }
-.menu-principale button.attivo { background: var(--blu); color: #fff; border-color: var(--blu); }
+/* ogni sezione ha il suo colore: scolorito da spenta, pieno da accesa */
+.menu-principale button[data-sezione="esploratore"] { color: var(--sez-esploratore); border-color: var(--sez-esploratore); }
+.menu-principale button[data-sezione="palestra"] { color: var(--sez-palestra); border-color: var(--sez-palestra); }
+.menu-principale button[data-sezione="esploratore"].attivo { background: var(--sez-esploratore); color: #fff; }
+.menu-principale button[data-sezione="palestra"].attivo { background: var(--sez-palestra); color: #fff; }
+
+.pulsante-leggibilita {
+  display: inline-flex; align-items: center; gap: 7px;
+  color: var(--accento) !important; border-color: var(--accento) !important;
+}
+.pulsante-leggibilita[aria-expanded="true"] { background: var(--accento); color: #fff !important; }
+.segno-leggibilita { font-weight: 700; font-size: 1.05rem; line-height: 1; }
 
 /* --- Comandi principali --- */
 
@@ -90,23 +144,52 @@ section { flex: 1; display: flex; flex-direction: column; min-height: 0; padding
 }
 
 .interruttore { display: flex; align-items: center; gap: 9px; cursor: pointer; padding: 4px 0; }
-.interruttore input { width: 19px; height: 19px; accent-color: var(--blu); }
+.interruttore input { width: 19px; height: 19px; accent-color: var(--accento); }
 
-.schede { display: flex; gap: 5px; flex-wrap: wrap; border-bottom: 1px solid var(--bordo); }
+/* barra dei selettori: resta bianca, come l'area di disegno */
+.schede {
+  display: flex; gap: 8px; flex-wrap: wrap;
+  background: var(--carta-chiara);
+  border: 1px solid var(--bordo);
+  border-radius: var(--raggio);
+  padding: 8px 10px;
+}
 .schede button {
   font: inherit;
   font-size: var(--testo-comando);
+  font-weight: 600;
+  display: inline-flex; align-items: center; gap: 9px;
   padding: 7px 14px;
   min-height: var(--altezza-comando);
-  border: 1px solid var(--bordo);
-  border-bottom: none;
-  border-radius: var(--raggio) var(--raggio) 0 0;
-  background: var(--carta);
+  border: none;
+  border-radius: 8px;
+  color: #fff;
   cursor: pointer;
-  margin-bottom: -1px;
+  opacity: 0.58;
+  transition: opacity 0.15s ease;
 }
-.schede button.attivo { background: var(--carta-chiara); font-weight: 700; border-bottom: 1px solid var(--carta-chiara); }
-.schede button[disabled] { opacity: 0.45; cursor: not-allowed; }
+.schede button:hover:not([disabled]) { opacity: 0.85; }
+/* la scheda accesa è a pieno colore, in grassetto e leggermente sollevata */
+.schede button.attivo {
+  opacity: 1; font-weight: 700;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+}
+.schede button[disabled] { opacity: 0.28; cursor: not-allowed; }
+
+/* i quattro metodi, ciascuno col suo colore: le schede dell'Esploratore e i
+   pulsanti dell'argomento nella Palestra */
+.schede button[data-scheda="ortogonali"],
+.gruppo-scelte button[data-argomento="ortogonali"] { background: var(--met-ortogonali); }
+.schede button[data-scheda="assonometria"],
+.gruppo-scelte button[data-argomento="assonometria"] { background: var(--met-assonometria); }
+.schede button[data-scheda="prospettiva"],
+.gruppo-scelte button[data-argomento="prospettiva"] { background: var(--met-prospettiva); }
+.schede button[data-scheda="sezioni"],
+.gruppo-scelte button[data-argomento="sezioni"] { background: var(--met-sezioni); }
+.gruppo-scelte button[data-argomento="misto"] { background: var(--accento); }
+
+/* icone dei metodi: lo stesso cubo, disegnato secondo ciascun metodo */
+.icona-metodo { width: 24px; height: 24px; flex: none; color: #fff; }
 
 /* --- Selettore della vista singola (schermi stretti) --- */
 
@@ -118,11 +201,11 @@ section { flex: 1; display: flex; flex-direction: column; min-height: 0; padding
   border: 1px solid var(--bordo); background: var(--carta);
   border-radius: var(--raggio); cursor: pointer;
 }
-.scelta-viste button.attivo { background: var(--blu); color: #fff; border-color: var(--blu); }
+.scelta-viste button.attivo { background: var(--accento); color: #fff; border-color: var(--accento); }
 
 .schema-disposizione { width: 52px; height: 38px; flex: none; }
 .schema-disposizione rect { fill: none; stroke: var(--inchiostro-tenue); stroke-width: 2; }
-.schema-disposizione rect.attiva { fill: var(--blu-chiaro); stroke: var(--blu); }
+.schema-disposizione rect.attiva { fill: #efe3e5; stroke: var(--accento); }
 .schema-disposizione line.schema-richiamo { stroke: var(--richiamo); stroke-width: 1.5; stroke-dasharray: 3 3; }
 .schema-disposizione text { font-size: 17px; fill: var(--inchiostro-tenue); }
 
@@ -212,7 +295,7 @@ section { flex: 1; display: flex; flex-direction: column; min-height: 0; padding
   vector-effect: non-scaling-stroke;
 }
 .etichetta-asse-errato { fill: var(--evidenza); font-weight: 700; font-style: italic; }
-.griglia { stroke: #dedbd2; stroke-width: 1; vector-effect: non-scaling-stroke; }
+.griglia { stroke: var(--griglia); stroke-width: 1; vector-effect: non-scaling-stroke; }
 
 .linea-orizzonte {
   stroke: var(--blu);
@@ -310,8 +393,8 @@ text { font-family: "Segoe UI", system-ui, sans-serif; }
 
 .cursore { margin: 10px 0 6px; }
 .cursore label { display: flex; justify-content: space-between; font-size: 0.88rem; gap: 8px; }
-.cursore output { font-family: "Consolas", monospace; color: var(--blu); font-weight: 700; }
-.cursore input[type="range"] { width: 100%; accent-color: var(--blu); height: 28px; }
+.cursore output { font-family: "Consolas", monospace; color: var(--accento); font-weight: 700; }
+.cursore input[type="range"] { width: 100%; accent-color: var(--accento); height: 28px; }
 
 .pulsanti-tipo { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 10px; }
 .pulsanti-tipo button {
@@ -325,7 +408,7 @@ text { font-family: "Segoe UI", system-ui, sans-serif; }
   cursor: pointer;
   flex: 1 1 44%;
 }
-.pulsanti-tipo button.attivo { background: var(--blu); color: #fff; border-color: var(--blu); }
+.pulsanti-tipo button.attivo { background: var(--accento); color: #fff; border-color: var(--accento); }
 
 .lettura {
   font-family: "Consolas", "SF Mono", monospace;
@@ -344,7 +427,7 @@ text { font-family: "Segoe UI", system-ui, sans-serif; }
   border: 1px solid var(--bordo); background: var(--carta);
   border-radius: var(--raggio); cursor: pointer;
 }
-.alternanza button.attivo { background: var(--blu); color: #fff; border-color: var(--blu); }
+.alternanza button.attivo { background: var(--accento); color: #fff; border-color: var(--accento); }
 
 #apri-pannello, #chiudi-pannello {
   font: inherit; font-size: var(--testo-comando);
@@ -356,19 +439,34 @@ text { font-family: "Segoe UI", system-ui, sans-serif; }
 .solo-stretto { display: none; }
 
 .in-arrivo { margin: auto; text-align: center; color: var(--inchiostro-tenue); }
+.solo-largo { display: inline; }
 
 /* --- Palestra --- */
 
-.gruppo-scelte { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.gruppo-scelte {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  background: var(--carta-chiara);
+  border: 1px solid var(--bordo);
+  border-radius: var(--raggio);
+  padding: 8px 12px;
+}
 .etichetta-gruppo { font-weight: 700; font-size: 0.9rem; margin-right: 4px; }
 .gruppo-scelte button {
-  font: inherit; font-size: 0.95rem;
-  padding: 10px 14px; min-height: 46px;
-  border: 1px solid var(--bordo); background: var(--carta);
-  border-radius: var(--raggio); cursor: pointer;
+  font: inherit; font-size: 0.95rem; font-weight: 600;
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 9px 14px; min-height: 46px;
+  border: 1.5px solid var(--bordo); background: var(--carta-chiara);
+  color: var(--inchiostro-tenue);
+  border-radius: 8px; cursor: pointer;
 }
-.gruppo-scelte button.attivo { background: var(--blu); color: #fff; border-color: var(--blu); }
-.gruppo-scelte button[disabled] { opacity: 0.45; cursor: not-allowed; }
+/* i pulsanti dell'argomento portano il colore del proprio metodo */
+.gruppo-scelte button[data-argomento] { border: none; color: #fff; opacity: 0.58; }
+.gruppo-scelte button[data-argomento]:hover:not([disabled]) { opacity: 0.85; }
+.gruppo-scelte button[data-argomento].attivo {
+  opacity: 1; font-weight: 700; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+}
+.gruppo-scelte button[data-livello].attivo { background: var(--accento); color: #fff; border-color: var(--accento); }
+.gruppo-scelte button[disabled] { opacity: 0.3; cursor: not-allowed; }
 
 .tabellone {
   display: flex; gap: 22px; flex-wrap: wrap;
@@ -378,7 +476,7 @@ text { font-family: "Segoe UI", system-ui, sans-serif; }
   border-radius: var(--raggio);
   font-size: 0.95rem;
 }
-.tabellone b { font-size: 1.25rem; color: var(--blu); margin-left: 6px; }
+.tabellone b { font-size: 1.25rem; color: var(--accento); margin-left: 6px; }
 
 .esercizio {
   flex: 1; min-height: 0; overflow-y: auto;
@@ -420,7 +518,7 @@ text { font-family: "Segoe UI", system-ui, sans-serif; }
   height: min(26vh, 210px);
   display: flex;
 }
-.carta-opzione:hover:not([disabled]) { border-color: var(--blu); }
+.carta-opzione:hover:not([disabled]) { border-color: var(--accento); }
 .carta-opzione[disabled] { cursor: default; }
 .carta-opzione.giusta { border-color: #1e7a41; background: #f0f8f2; }
 .carta-opzione.sbagliata { border-color: var(--evidenza); background: #fdf1ec; }
@@ -504,7 +602,7 @@ text { font-family: "Segoe UI", system-ui, sans-serif; }
   border: 1px solid var(--bordo); background: var(--carta);
   border-radius: var(--raggio); cursor: pointer;
 }
-.scelte-abbinamento button.attivo { background: var(--blu); color: #fff; border-color: var(--blu); }
+.scelte-abbinamento button.attivo { background: var(--accento); color: #fff; border-color: var(--accento); }
 .scelte-abbinamento button.valore-giusto { border-color: #1e7a41; border-width: 2px; font-weight: 700; }
 
 .riscontro { min-height: 2.6em; font-size: 1rem; padding: 4px 2px; }
@@ -514,13 +612,161 @@ text { font-family: "Segoe UI", system-ui, sans-serif; }
 .pulsante-principale {
   font: inherit; align-self: flex-start;
   padding: 12px 24px; min-height: 48px;
-  background: var(--blu); color: #fff;
+  background: var(--accento); color: #fff;
   border: none; border-radius: var(--raggio); cursor: pointer;
 }
 
 .statistiche { font-size: 0.95rem; max-width: 420px; }
 .statistiche h3 { font-size: 0.95rem; margin: 10px 0 6px; color: var(--inchiostro-tenue); }
 .statistiche div { display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px solid var(--bordo); }
+
+/* --- Bordo a tratto di matita ---
+   Il contorno è disegnato da un elemento sovrapposto e poi increspato dal
+   filtro: così il bordo resta irregolare a qualunque dimensione della card.
+   Serve un po' di spazio attorno, perché il tratto sborda. */
+
+.carta-opzione, .carta-abbinamento, .tabellone, .riquadro-domanda {
+  position: relative;
+  border-color: transparent;
+}
+.carta-opzione::before, .carta-abbinamento::before,
+.tabellone::before, .riquadro-domanda::before {
+  content: "";
+  position: absolute;
+  inset: -5px;
+  border: 1.3px solid var(--matita);
+  border-radius: 5px;
+  opacity: 0.65;
+  filter: url(#tratto-a-matita);
+  pointer-events: none;
+}
+/* quando la card dice se la risposta è giusta o sbagliata, il colore del
+   bordo deve leggersi senza interferenze */
+.carta-opzione.giusta::before, .carta-opzione.sbagliata::before,
+.carta-abbinamento.giusta::before, .carta-abbinamento.sbagliata::before { display: none; }
+
+/* i pannelli scorrono al loro interno, quindi il tratto irregolare verrebbe
+   tagliato: qui il bordo resta una linea sottile, dello stesso colore */
+.pannello, .pannello-leggibilita { border-color: var(--matita); }
+
+/* margine di sicurezza: il tratto irregolare non deve toccare nulla */
+.opzioni { gap: 18px; }
+.opzioni.in-colonna { gap: 14px; }
+.esercizio { gap: 16px; padding: 10px; }
+.area-lavoro { gap: 18px; }
+
+/* --- Pannello di alta leggibilità --- */
+
+.pannello-leggibilita {
+  position: fixed;
+  top: 64px; right: 16px;
+  z-index: 40;
+  width: min(92vw, 340px);
+  max-height: calc(100vh - 80px);
+  overflow-y: auto;
+  background: var(--carta-chiara);
+  border: 1px solid var(--bordo);
+  border-radius: var(--raggio);
+  padding: 8px 18px 18px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+}
+.pannello-leggibilita h2 {
+  font-size: 1rem; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--inchiostro-tenue);
+}
+.pannello-leggibilita .interruttore { margin: 6px 0; }
+.pannello-leggibilita .pannello-testata button {
+  font: inherit; font-size: 1.4rem; line-height: 1;
+  padding: 4px 12px; min-height: 40px;
+  border: 1px solid var(--bordo); background: var(--carta);
+  border-radius: var(--raggio); cursor: pointer;
+}
+.pulsante-secondario {
+  font: inherit; font-size: var(--testo-comando);
+  padding: 9px 16px; min-height: var(--altezza-comando);
+  margin-top: 8px;
+  border: 1.5px solid var(--accento); background: var(--carta-chiara);
+  color: var(--accento); border-radius: var(--raggio); cursor: pointer;
+}
+
+/* --- Alto contrasto ---
+   Fondo nero e testo giallo in tutta l'applicazione, disegno compreso: i
+   colori del tratto vengono dalle stesse variabili, quindi basta ridefinirle.
+   Qui il bordo a matita si spegne: l'irregolarità disturberebbe la lettura. */
+
+body.alto-contrasto {
+  --carta: #000000;
+  --carta-chiara: #000000;
+  --inchiostro: #FFEB3B;
+  --inchiostro-tenue: #FFEB3B;
+  --bordo: #FFEB3B;
+  --accento: #FFEB3B;
+  --matita: #FFEB3B;
+  --blu: #7FD8FF;
+  --blu-chiaro: #0d3b4a;
+  --richiamo: #cfcfcf;
+  --evidenza: #FFA24F;
+  --griglia: #3a3a3a;
+  --sez-esploratore: #000000;
+  --sez-palestra: #000000;
+  --met-ortogonali: #000000;
+  --met-assonometria: #000000;
+  --met-prospettiva: #000000;
+  --met-sezioni: #000000;
+  --bianco-piano: #FFEB3B;
+  --grigio-piano: #8a7f10;
+  --nero-piano: #000000;
+  background: #000;
+  color: #FFEB3B;
+}
+/* qui il bordo a matita si spegne e torna una linea netta */
+.alto-contrasto .carta-opzione::before, .alto-contrasto .carta-abbinamento::before,
+.alto-contrasto .tabellone::before, .alto-contrasto .riquadro-domanda::before { display: none; }
+.alto-contrasto .carta-opzione, .alto-contrasto .carta-abbinamento,
+.alto-contrasto .tabellone, .alto-contrasto .riquadro-domanda { border: 2px solid #FFEB3B; }
+.alto-contrasto .schede button,
+.alto-contrasto .gruppo-scelte button[data-argomento],
+.alto-contrasto .menu-principale button {
+  opacity: 1;
+  color: #FFEB3B;
+  border: 2px solid #FFEB3B;
+}
+.alto-contrasto .schede button.attivo,
+.alto-contrasto .gruppo-scelte button[data-argomento].attivo,
+.alto-contrasto .menu-principale button.attivo,
+.alto-contrasto .pulsanti-tipo button.attivo,
+.alto-contrasto .gruppo-scelte button[data-livello].attivo,
+.alto-contrasto .scelta-viste button.attivo,
+.alto-contrasto .alternanza button.attivo,
+.alto-contrasto .scelte-abbinamento button.attivo,
+.alto-contrasto .pulsante-principale {
+  background: #FFEB3B; color: #000; box-shadow: none;
+}
+.alto-contrasto .icona-metodo { color: #FFEB3B; }
+.alto-contrasto .schede button.attivo .icona-metodo,
+.alto-contrasto .gruppo-scelte button.attivo .icona-metodo { color: #000; }
+.alto-contrasto .carta-opzione, .alto-contrasto .carta-abbinamento,
+.alto-contrasto .tela, .alto-contrasto .riquadro-domanda,
+.alto-contrasto .pannello, .alto-contrasto .tabellone,
+.alto-contrasto .schede, .alto-contrasto .gruppo-scelte,
+.alto-contrasto .pannello-leggibilita, .alto-contrasto .campo select,
+.alto-contrasto .lettura {
+  background: #000; border-color: #FFEB3B;
+}
+.alto-contrasto .campo select, .alto-contrasto .campo select option,
+.alto-contrasto .pulsante-secondario, .alto-contrasto .pannello-testata button,
+.alto-contrasto .scelta-viste button, .alto-contrasto .pulsanti-tipo button,
+.alto-contrasto .alternanza button, .alto-contrasto .scelte-abbinamento button,
+.alto-contrasto #apri-pannello, .alto-contrasto #chiudi-pannello {
+  background: #000; color: #FFEB3B; border-color: #FFEB3B;
+}
+.alto-contrasto .interruttore input, .alto-contrasto input[type="range"] { accent-color: #FFEB3B; }
+.alto-contrasto .carta-opzione.giusta, .alto-contrasto .carta-abbinamento.giusta { border-color: #7CFF9B; background: #000; }
+.alto-contrasto .carta-opzione.sbagliata, .alto-contrasto .carta-abbinamento.sbagliata { border-color: #FFA24F; background: #000; }
+.alto-contrasto .riscontro.esito-giusto { color: #7CFF9B; }
+.alto-contrasto .riscontro.esito-sbagliato { color: #FFA24F; }
+.alto-contrasto .faccia { fill: #2b2b2b; stroke: #FFEB3B; stroke-width: 0.6; }
+.alto-contrasto .faccia-tagliata { fill: #6b4a12; }
 
 @media (max-width: 860px) {
   .opzioni { grid-template-columns: repeat(2, 1fr); }
@@ -542,7 +788,7 @@ text { font-family: "Segoe UI", system-ui, sans-serif; }
 /* --- Schermi stretti: l'impianto si riorganizza --- */
 
 @media (max-width: 860px) {
-  body { font-size: 14px; }
+  /* la dimensione del testo non si tocca: la decide il pannello di lettura */
   :root { --altezza-comando: 38px; --testo-comando: 0.88rem; }
   section { padding: 6px 10px 10px; gap: 6px; }
 
@@ -558,6 +804,10 @@ text { font-family: "Segoe UI", system-ui, sans-serif; }
   .selettore-vista { gap: 8px; }
 
   .solo-stretto { display: block; }
+  .solo-largo { display: none; }
+  .pannello-leggibilita { top: 56px; right: 8px; }
+  /* le icone dei metodi restano, il testo delle schede si accorcia da solo */
+  .icona-metodo { width: 20px; height: 20px; }
   .tele { flex-direction: column; }
   .pannello {
     position: fixed;

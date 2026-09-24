@@ -7,14 +7,87 @@
      entra, ma il sito non compare nelle ricerche -->
 <meta name="robots" content="noindex, nofollow">
 <title>Triedro — metodi di rappresentazione</title>
+<!-- Atkinson Hyperlegible: carattere a bastoni disegnato per l'alta
+     leggibilità. Se il collegamento non è disponibile si usa il bastoni di
+     sistema, indicato subito dopo nel foglio di stile. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/stile.css">
 </head>
 <body>
 
+<!-- Disegni riutilizzati: il filtro che dà al tratto un andamento a mano
+     libera e le quattro icone dei metodi, lo stesso cubo reso ogni volta
+     secondo il metodo che rappresenta. -->
+<svg class="deposito-disegni" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <filter id="tratto-a-matita" x="-30%" y="-30%" width="160%" height="160%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" seed="7" result="rumore"/>
+      <feDisplacementMap in="SourceGraphic" in2="rumore" scale="1.4"/>
+    </filter>
+
+    <!-- proiezioni ortogonali: la faccia del cubo vista di fronte -->
+    <symbol id="ico-ortogonali" viewBox="0 0 40 40">
+      <rect x="8" y="8" width="24" height="24" fill="none" stroke="currentColor"
+            stroke-width="1.3" stroke-linecap="round" filter="url(#tratto-a-matita)"/>
+    </symbol>
+
+    <!-- assonometria: il cubo in vista isometrica, senza lo spigolo nascosto -->
+    <symbol id="ico-assonometria" viewBox="0 0 40 40">
+      <g fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" filter="url(#tratto-a-matita)">
+        <polygon points="20,4 34,12 34,26 20,34 6,26 6,12"/>
+        <line x1="6" y1="12" x2="20" y2="18"/>
+        <line x1="34" y1="12" x2="20" y2="18"/>
+        <line x1="20" y1="18" x2="20" y2="34"/>
+      </g>
+    </symbol>
+
+    <!-- prospettiva: la faccia frontale e le fughe verso il punto di fuga -->
+    <symbol id="ico-prospettiva" viewBox="0 0 40 40">
+      <g fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" filter="url(#tratto-a-matita)">
+        <rect x="10" y="16" width="16" height="16"/>
+        <line x1="10" y1="16" x2="14.8" y2="8.8"/>
+        <line x1="26" y1="16" x2="21.2" y2="8.8"/>
+        <line x1="14.8" y1="8.8" x2="21.2" y2="8.8"/>
+      </g>
+      <g fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"
+         stroke-opacity="0.4" filter="url(#tratto-a-matita)">
+        <line x1="14.8" y1="8.8" x2="18" y2="4"/>
+        <line x1="21.2" y1="8.8" x2="18" y2="4"/>
+      </g>
+      <circle cx="18" cy="4" r="1" fill="currentColor" fill-opacity="0.4" stroke="none"/>
+    </symbol>
+
+    <!-- sezioni: lo stesso cubo isometrico attraversato dal piano di sezione -->
+    <symbol id="ico-sezioni" viewBox="0 0 40 40">
+      <g fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" filter="url(#tratto-a-matita)">
+        <polygon points="20,4 34,12 34,26 20,34 6,26 6,12"/>
+        <line x1="6" y1="12" x2="20" y2="18"/>
+        <line x1="34" y1="12" x2="20" y2="18"/>
+        <line x1="20" y1="18" x2="20" y2="34"/>
+      </g>
+      <polygon points="2,19 30,5 38,19 10,33" fill="currentColor" fill-opacity="0.28" stroke="none"/>
+    </symbol>
+
+    <!-- il marchio: i tre piani del triedro, separati da un filo di fondo -->
+    <symbol id="ico-triedro" viewBox="0 0 220 220">
+      <polygon points="110,40 180,85 110,130 40,85" fill="var(--bianco-piano)"/>
+      <polygon points="110,130 180,85 180,165 110,205" fill="var(--grigio-piano)"/>
+      <polygon points="110,130 40,85 40,165 110,205" fill="var(--nero-piano)"/>
+      <g stroke="var(--carta)" stroke-width="2" fill="none">
+        <line x1="110" y1="130" x2="110" y2="205"/>
+        <line x1="110" y1="130" x2="40" y2="85"/>
+        <line x1="110" y1="130" x2="180" y2="85"/>
+      </g>
+    </symbol>
+  </defs>
+</svg>
+
 <header class="barra">
   <div class="marchio">
     <span class="logo" aria-hidden="true">
-      <svg viewBox="0 0 32 32"><path d="M4 26 L16 6 L28 26 Z"/><path d="M16 6 L16 26"/><path d="M4 26 L28 26"/></svg>
+      <svg viewBox="0 0 220 220"><use href="#ico-triedro"/></svg>
     </span>
     <div>
       <h1>Triedro</h1>
@@ -24,8 +97,43 @@
   <nav class="menu-principale">
     <button type="button" class="attivo" data-sezione="esploratore">Esploratore</button>
     <button type="button" data-sezione="palestra">Palestra</button>
+    <button type="button" id="apri-leggibilita" class="pulsante-leggibilita"
+            aria-expanded="false" aria-controls="pannello-leggibilita"
+            title="Alta leggibilità e alto contrasto">
+      <span class="segno-leggibilita" aria-hidden="true">Aa</span>
+      <span class="solo-largo">Leggibilità</span>
+    </button>
   </nav>
 </header>
+
+<!-- Impostazioni di lettura: ognuna vale per conto suo, così ciascuno
+     prende solo l'aiuto che gli serve. -->
+<aside class="pannello-leggibilita" id="pannello-leggibilita" hidden>
+  <div class="pannello-testata">
+    <h2>Alta leggibilità</h2>
+    <button type="button" id="chiudi-leggibilita" aria-label="Chiudi">×</button>
+  </div>
+
+  <label class="interruttore"><input type="checkbox" id="opz-contrasto"><span>Alto contrasto (fondo nero, testo giallo)</span></label>
+
+  <div class="cursore">
+    <label for="acc-dimensione">Dimensione del testo <output id="val-acc-dimensione">15</output> px</label>
+    <input type="range" id="acc-dimensione" min="14" max="24" step="1" value="15">
+  </div>
+  <div class="cursore">
+    <label for="acc-interlinea">Interlinea <output id="val-acc-interlinea">1,4</output></label>
+    <input type="range" id="acc-interlinea" min="1.2" max="2.2" step="0.1" value="1.4">
+  </div>
+  <div class="cursore">
+    <label for="acc-spaziatura">Spaziatura tra le lettere <output id="val-acc-spaziatura">0</output> px</label>
+    <input type="range" id="acc-spaziatura" min="0" max="3" step="0.5" value="0">
+  </div>
+
+  <label class="interruttore"><input type="checkbox" id="opz-voce"><span>Leggi ad alta voce le consegne della Palestra</span></label>
+  <p class="nota" id="nota-voce">La lettura parte a ogni nuovo esercizio. È l'unico suono dell'applicazione.</p>
+
+  <button type="button" id="azzera-leggibilita" class="pulsante-secondario">Rimetti come prima</button>
+</aside>
 
 <main>
   <section id="sezione-esploratore">
@@ -39,10 +147,22 @@
     </div>
 
     <div class="schede" role="tablist">
-      <button type="button" role="tab" class="attivo" data-scheda="ortogonali">Proiezioni ortogonali</button>
-      <button type="button" role="tab" data-scheda="assonometria">Assonometria</button>
-      <button type="button" role="tab" data-scheda="prospettiva">Prospettiva</button>
-      <button type="button" role="tab" data-scheda="sezioni">Sezioni</button>
+      <button type="button" role="tab" class="attivo" data-scheda="ortogonali">
+        <svg class="icona-metodo" aria-hidden="true" viewBox="0 0 40 40"><use href="#ico-ortogonali"/></svg>
+        <span>Proiezioni ortogonali</span>
+      </button>
+      <button type="button" role="tab" data-scheda="assonometria">
+        <svg class="icona-metodo" aria-hidden="true" viewBox="0 0 40 40"><use href="#ico-assonometria"/></svg>
+        <span>Assonometria</span>
+      </button>
+      <button type="button" role="tab" data-scheda="prospettiva">
+        <svg class="icona-metodo" aria-hidden="true" viewBox="0 0 40 40"><use href="#ico-prospettiva"/></svg>
+        <span>Prospettiva</span>
+      </button>
+      <button type="button" role="tab" data-scheda="sezioni">
+        <svg class="icona-metodo" aria-hidden="true" viewBox="0 0 40 40"><use href="#ico-sezioni"/></svg>
+        <span>Sezioni</span>
+      </button>
     </div>
 
     <div class="selettore-vista" id="selettore-vista" hidden>
@@ -186,10 +306,22 @@
     <div class="riga-comandi">
       <div class="gruppo-scelte">
         <span class="etichetta-gruppo">Argomento</span>
-        <button type="button" class="attivo" data-argomento="ortogonali">Proiezioni ortogonali</button>
-        <button type="button" data-argomento="assonometria">Assonometria</button>
-        <button type="button" data-argomento="sezioni">Sezioni</button>
-        <button type="button" data-argomento="prospettiva">Prospettiva</button>
+        <button type="button" class="attivo" data-argomento="ortogonali">
+          <svg class="icona-metodo" aria-hidden="true" viewBox="0 0 40 40"><use href="#ico-ortogonali"/></svg>
+          <span>Proiezioni ortogonali</span>
+        </button>
+        <button type="button" data-argomento="assonometria">
+          <svg class="icona-metodo" aria-hidden="true" viewBox="0 0 40 40"><use href="#ico-assonometria"/></svg>
+          <span>Assonometria</span>
+        </button>
+        <button type="button" data-argomento="sezioni">
+          <svg class="icona-metodo" aria-hidden="true" viewBox="0 0 40 40"><use href="#ico-sezioni"/></svg>
+          <span>Sezioni</span>
+        </button>
+        <button type="button" data-argomento="prospettiva">
+          <svg class="icona-metodo" aria-hidden="true" viewBox="0 0 40 40"><use href="#ico-prospettiva"/></svg>
+          <span>Prospettiva</span>
+        </button>
         <button type="button" data-argomento="misto">Misto</button>
       </div>
       <div class="gruppo-scelte">
@@ -225,5 +357,6 @@
 <script src="js/esploratore.js"></script>
 <script src="js/palestra.js"></script>
 <script src="js/app.js"></script>
+<script src="js/accessibilita.js"></script>
 </body>
 </html>

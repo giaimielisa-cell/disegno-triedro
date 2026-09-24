@@ -6,12 +6,13 @@
   function mostraSezione(nome) {
     document.getElementById('sezione-esploratore').hidden = nome !== 'esploratore';
     document.getElementById('sezione-palestra').hidden = nome !== 'palestra';
-    document.querySelectorAll('.menu-principale button').forEach(b => {
+    document.querySelectorAll('.menu-principale button[data-sezione]').forEach(b => {
       b.classList.toggle('attivo', b.dataset.sezione === nome);
     });
   }
 
-  document.querySelectorAll('.menu-principale button').forEach(b => {
+  // nella barra c'è anche il pulsante della leggibilità, che non è una sezione
+  document.querySelectorAll('.menu-principale button[data-sezione]').forEach(b => {
     b.addEventListener('click', () => mostraSezione(b.dataset.sezione));
   });
 
