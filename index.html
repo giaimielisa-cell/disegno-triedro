@@ -7,12 +7,6 @@
      entra, ma il sito non compare nelle ricerche -->
 <meta name="robots" content="noindex, nofollow">
 <title>Triedro — metodi di rappresentazione</title>
-<!-- Atkinson Hyperlegible: carattere a bastoni disegnato per l'alta
-     leggibilità. Se il collegamento non è disponibile si usa il bastoni di
-     sistema, indicato subito dopo nel foglio di stile. -->
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/stile.css">
 </head>
 <body>
@@ -99,7 +93,7 @@
     <button type="button" data-sezione="palestra">Palestra</button>
     <button type="button" id="apri-leggibilita" class="pulsante-leggibilita"
             aria-expanded="false" aria-controls="pannello-leggibilita"
-            title="Alta leggibilità e alto contrasto">
+            title="Dimensione del testo, interlinea, spaziatura, lettura ad alta voce">
       <span class="segno-leggibilita" aria-hidden="true">Aa</span>
       <span class="solo-largo">Leggibilità</span>
     </button>
@@ -113,8 +107,6 @@
     <h2>Alta leggibilità</h2>
     <button type="button" id="chiudi-leggibilita" aria-label="Chiudi">×</button>
   </div>
-
-  <label class="interruttore"><input type="checkbox" id="opz-contrasto"><span>Alto contrasto (fondo nero, testo giallo)</span></label>
 
   <div class="cursore">
     <label for="acc-dimensione">Dimensione del testo <output id="val-acc-dimensione">15</output> px</label>

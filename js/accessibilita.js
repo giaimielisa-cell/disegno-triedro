@@ -1,6 +1,5 @@
-// Aiuti alla lettura. Sono tre cose indipendenti fra loro, perché ciascuno
-// prenda solo quella che gli serve:
-//   - alto contrasto (fondo nero, testo giallo);
+// Aiuti alla lettura. Sono comandi indipendenti fra loro, perché ciascuno
+// prenda solo quello che gli serve:
 //   - dimensione del testo, interlinea e spaziatura fra le lettere;
 //   - lettura ad alta voce delle consegne della Palestra.
 // Le scelte restano memorizzate in questo browser, così allo studente non
@@ -12,7 +11,6 @@
   const CHIAVE = 'triedro-leggibilita';
 
   const PREDEFINITE = {
-    contrasto: false,
     dimensione: 15,
     interlinea: 1.4,
     spaziatura: 0,
@@ -81,9 +79,7 @@
     radice.style.setProperty('--testo-base', stato.dimensione + 'px');
     radice.style.setProperty('--interlinea', String(stato.interlinea));
     radice.style.setProperty('--spaziatura', stato.spaziatura + 'px');
-    document.body.classList.toggle('alto-contrasto', stato.contrasto);
 
-    if (el.contrasto) el.contrasto.checked = stato.contrasto;
     if (el.voce) el.voce.checked = stato.voce;
     if (el.dimensione) {
       el.dimensione.value = stato.dimensione;
@@ -115,7 +111,6 @@
     el.apri = document.getElementById('apri-leggibilita');
     el.chiudi = document.getElementById('chiudi-leggibilita');
     el.pannello = document.getElementById('pannello-leggibilita');
-    el.contrasto = document.getElementById('opz-contrasto');
     el.voce = document.getElementById('opz-voce');
     el.notaVoce = document.getElementById('nota-voce');
     el.dimensione = document.getElementById('acc-dimensione');
@@ -135,7 +130,6 @@
       if (e.key === 'Escape' && !el.pannello.hidden) apriPannello(false);
     });
 
-    el.contrasto.addEventListener('change', e => cambia('contrasto', e.target.checked));
     el.dimensione.addEventListener('input', e => cambia('dimensione', Number(e.target.value)));
     el.interlinea.addEventListener('input', e => cambia('interlinea', Number(e.target.value)));
     el.spaziatura.addEventListener('input', e => cambia('spaziatura', Number(e.target.value)));

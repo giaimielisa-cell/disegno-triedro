@@ -41,6 +41,9 @@
   --altezza-comando: 40px;
   --testo-comando: 0.92rem;
 
+  /* carattere: solo bastoni, nessuna serif in nessun punto dell'interfaccia */
+  --bastoni: "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;
+
   /* alta leggibilità: valori comandati dal pannello, uguali per tutto il sito */
   --testo-base: 15px;
   --interlinea: 1.4;
@@ -61,7 +64,9 @@ html, body {
   height: 100%;
   background: var(--carta);
   color: var(--inchiostro);
-  font-family: "Atkinson Hyperlegible", "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+  /* solo caratteri a bastoni già presenti sul computer: il sito non chiede
+     nulla all'esterno e funziona anche senza collegamento */
+  font-family: var(--bastoni);
   line-height: var(--interlinea);
   letter-spacing: var(--spaziatura);
   overscroll-behavior: none;
@@ -362,7 +367,7 @@ section { flex: 1; display: flex; flex-direction: column; min-height: 0; padding
 .piano-proiezione { fill: var(--blu-chiaro); fill-opacity: 0.35; stroke: var(--blu); stroke-width: 1; stroke-dasharray: 4 3; vector-effect: non-scaling-stroke; }
 .faccia { stroke: none; }
 
-text { font-family: "Segoe UI", system-ui, sans-serif; }
+text { font-family: var(--bastoni); }
 .titolo-vista { fill: var(--inchiostro-tenue); font-weight: 700; }
 .etichetta-vertice { fill: var(--blu); font-weight: 700; }
 .etichetta-asse { fill: var(--blu); font-style: italic; }
@@ -688,85 +693,6 @@ text { font-family: "Segoe UI", system-ui, sans-serif; }
   border: 1.5px solid var(--accento); background: var(--carta-chiara);
   color: var(--accento); border-radius: var(--raggio); cursor: pointer;
 }
-
-/* --- Alto contrasto ---
-   Fondo nero e testo giallo in tutta l'applicazione, disegno compreso: i
-   colori del tratto vengono dalle stesse variabili, quindi basta ridefinirle.
-   Qui il bordo a matita si spegne: l'irregolarità disturberebbe la lettura. */
-
-body.alto-contrasto {
-  --carta: #000000;
-  --carta-chiara: #000000;
-  --inchiostro: #FFEB3B;
-  --inchiostro-tenue: #FFEB3B;
-  --bordo: #FFEB3B;
-  --accento: #FFEB3B;
-  --matita: #FFEB3B;
-  --blu: #7FD8FF;
-  --blu-chiaro: #0d3b4a;
-  --richiamo: #cfcfcf;
-  --evidenza: #FFA24F;
-  --griglia: #3a3a3a;
-  --sez-esploratore: #000000;
-  --sez-palestra: #000000;
-  --met-ortogonali: #000000;
-  --met-assonometria: #000000;
-  --met-prospettiva: #000000;
-  --met-sezioni: #000000;
-  --bianco-piano: #FFEB3B;
-  --grigio-piano: #8a7f10;
-  --nero-piano: #000000;
-  background: #000;
-  color: #FFEB3B;
-}
-/* qui il bordo a matita si spegne e torna una linea netta */
-.alto-contrasto .carta-opzione::before, .alto-contrasto .carta-abbinamento::before,
-.alto-contrasto .tabellone::before, .alto-contrasto .riquadro-domanda::before { display: none; }
-.alto-contrasto .carta-opzione, .alto-contrasto .carta-abbinamento,
-.alto-contrasto .tabellone, .alto-contrasto .riquadro-domanda { border: 2px solid #FFEB3B; }
-.alto-contrasto .schede button,
-.alto-contrasto .gruppo-scelte button[data-argomento],
-.alto-contrasto .menu-principale button {
-  opacity: 1;
-  color: #FFEB3B;
-  border: 2px solid #FFEB3B;
-}
-.alto-contrasto .schede button.attivo,
-.alto-contrasto .gruppo-scelte button[data-argomento].attivo,
-.alto-contrasto .menu-principale button.attivo,
-.alto-contrasto .pulsanti-tipo button.attivo,
-.alto-contrasto .gruppo-scelte button[data-livello].attivo,
-.alto-contrasto .scelta-viste button.attivo,
-.alto-contrasto .alternanza button.attivo,
-.alto-contrasto .scelte-abbinamento button.attivo,
-.alto-contrasto .pulsante-principale {
-  background: #FFEB3B; color: #000; box-shadow: none;
-}
-.alto-contrasto .icona-metodo { color: #FFEB3B; }
-.alto-contrasto .schede button.attivo .icona-metodo,
-.alto-contrasto .gruppo-scelte button.attivo .icona-metodo { color: #000; }
-.alto-contrasto .carta-opzione, .alto-contrasto .carta-abbinamento,
-.alto-contrasto .tela, .alto-contrasto .riquadro-domanda,
-.alto-contrasto .pannello, .alto-contrasto .tabellone,
-.alto-contrasto .schede, .alto-contrasto .gruppo-scelte,
-.alto-contrasto .pannello-leggibilita, .alto-contrasto .campo select,
-.alto-contrasto .lettura {
-  background: #000; border-color: #FFEB3B;
-}
-.alto-contrasto .campo select, .alto-contrasto .campo select option,
-.alto-contrasto .pulsante-secondario, .alto-contrasto .pannello-testata button,
-.alto-contrasto .scelta-viste button, .alto-contrasto .pulsanti-tipo button,
-.alto-contrasto .alternanza button, .alto-contrasto .scelte-abbinamento button,
-.alto-contrasto #apri-pannello, .alto-contrasto #chiudi-pannello {
-  background: #000; color: #FFEB3B; border-color: #FFEB3B;
-}
-.alto-contrasto .interruttore input, .alto-contrasto input[type="range"] { accent-color: #FFEB3B; }
-.alto-contrasto .carta-opzione.giusta, .alto-contrasto .carta-abbinamento.giusta { border-color: #7CFF9B; background: #000; }
-.alto-contrasto .carta-opzione.sbagliata, .alto-contrasto .carta-abbinamento.sbagliata { border-color: #FFA24F; background: #000; }
-.alto-contrasto .riscontro.esito-giusto { color: #7CFF9B; }
-.alto-contrasto .riscontro.esito-sbagliato { color: #FFA24F; }
-.alto-contrasto .faccia { fill: #2b2b2b; stroke: #FFEB3B; stroke-width: 0.6; }
-.alto-contrasto .faccia-tagliata { fill: #6b4a12; }
 
 @media (max-width: 860px) {
   .opzioni { grid-template-columns: repeat(2, 1fr); }

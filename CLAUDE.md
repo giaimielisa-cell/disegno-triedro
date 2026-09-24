@@ -6,10 +6,11 @@ https://giaimielisa-cell.github.io/disegno-triedro/
 ## Come si lavora
 
 - **Sito statico**: solo HTML, CSS e JavaScript. Nessun passaggio di build.
-- **Nessuna libreria esterna.** Unica eccezione: il carattere *Atkinson
-  Hyperlegible*, caricato da Google Fonts perché è disegnato per l'alta
-  leggibilità. Il foglio di stile indica sempre un bastoni di sistema come
-  riserva, così il sito resta leggibile anche senza collegamento.
+- **Nessuna risorsa esterna, senza eccezioni**: né librerie, né caratteri, né
+  immagini prese altrove. Il sito deve aprirsi e funzionare anche senza
+  collegamento a internet. Per il testo si usano solo caratteri **a bastoni
+  già presenti sul computer** (la variabile `--bastoni` in cima al foglio di
+  stile): niente Google Fonts.
 - **`index.html`** nella cartella principale, e solo percorsi relativi (deve
   funzionare su GitHub Pages).
 - Commit piccoli e frequenti, con messaggi in italiano che spiegano cosa è
@@ -36,8 +37,8 @@ cambiare la proiezione.
 - `js/sezione.js` — taglio del solido, vera forma, ribaltamenti.
 - `js/disegno.js` — tutto ciò che finisce sul foglio.
 - `js/esploratore.js`, `js/palestra.js` — le due sezioni; `js/app.js` le avvia.
-- `js/accessibilita.js` — alto contrasto, dimensione del testo, interlinea,
-  spaziatura, lettura ad alta voce.
+- `js/accessibilita.js` — dimensione del testo, interlinea, spaziatura,
+  lettura ad alta voce.
 
 ## Convenzioni di disegno da non cambiare
 
@@ -82,9 +83,6 @@ si cambia lì, non nelle singole regole.
 
 ## Accessibilità: non toglierla
 
-- **Alto contrasto** (fondo nero, testo giallo) vale anche per il disegno,
-  perché le linee usano le stesse variabili di colore. In questa modalità il
-  bordo a matita si spegne e i bordi tornano netti.
 - **Dimensione del testo, interlinea e spaziatura** sono tre comandi
   indipendenti: uno studente può volerne uno solo.
 - **Lettura ad alta voce** delle consegne della Palestra: spenta di norma, è
