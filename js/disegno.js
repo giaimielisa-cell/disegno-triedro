@@ -183,7 +183,9 @@ const Disegno = (function () {
       const estremo = versoEtichetta === 'basso' ? piuInBasso : piuInAlto;
       const t = el('text', {
         x: estremo[0] + dimTesto * 0.35,
-        y: estremo[1] + (versoEtichetta === 'basso' ? dimTesto * 0.9 : -dimTesto * 0.35),
+        // in basso l'etichetta scende sotto il titolo della vista, per non
+        // finirgli sopra
+        y: estremo[1] + (versoEtichetta === 'basso' ? dimTesto * 2.1 : -dimTesto * 0.35),
         class: 'etichetta-traccia', 'font-size': dimTesto
       });
       t.textContent = etichetta;
@@ -201,6 +203,16 @@ const Disegno = (function () {
     tracciaSu('y', Geo.vistaOrtogonale('prospetto'),
       { x0: sinistra, x1: destra, y0: -b.z1 - m, y1: 0 }, 'tα″', 'alto');
     gruppo.appendChild(g);
+  }
+
+  // Tiene del segmento solo la parte che sta sopra la linea di terra, cioè
+  // dalla parte del P.V. (nel disegno la L.T. è la retta y = 0).
+  function sopraLaLineaDiTerra(a, b) {
+    if (a[1] <= 0 && b[1] <= 0) return [a, b];
+    if (a[1] > 0 && b[1] > 0) return null;
+    const t = a[1] / (a[1] - b[1]);
+    const taglio = [a[0] + t * (b[0] - a[0]), 0];
+    return a[1] <= 0 ? [a, taglio] : [taglio, b];
   }
 
   // Ritaglio di un segmento su un rettangolo (algoritmo di Liang-Barsky).
@@ -241,19 +253,25 @@ const Disegno = (function () {
     const prospetto = Geo.vistaOrtogonale('prospetto');
     const g = el('g', { class: 'ribaltamento-sezione' });
 
-    // la prima traccia ribaltata, perpendicolare alla cerniera
+    // la prima traccia ribaltata, perpendicolare alla cerniera. Ruotando, la
+    // traccia sale sul P.V.: si ferma dunque sulla linea di terra, che è il
+    // confine fra i due piani.
     if (r.tracciaRibaltata) {
-      const ta = prospetto.project(r.tracciaRibaltata.a);
-      const tb = prospetto.project(r.tracciaRibaltata.b);
-      g.appendChild(linea(ta[0], ta[1], tb[0], tb[1], 'traccia-ribaltata'));
-      // l'etichetta va all'estremo che cade più lontano dalle viste
-      const estremo = Math.hypot(ta[0] + b.x1, ta[1]) > Math.hypot(tb[0] + b.x1, tb[1]) ? ta : tb;
-      const et = el('text', {
-        x: estremo[0] + dimTesto * 0.35, y: estremo[1] + dimTesto * 0.9,
-        class: 'etichetta-traccia', 'font-size': dimTesto
-      });
-      et.textContent = '(tα′)';
-      g.appendChild(et);
+      const tratto = sopraLaLineaDiTerra(
+        prospetto.project(r.tracciaRibaltata.a),
+        prospetto.project(r.tracciaRibaltata.b));
+      if (tratto) {
+        const ta = tratto[0], tb = tratto[1];
+        g.appendChild(linea(ta[0], ta[1], tb[0], tb[1], 'traccia-ribaltata'));
+        // l'etichetta va all'estremo più lontano dalla linea di terra
+        const estremo = ta[1] < tb[1] ? ta : tb;
+        const et = el('text', {
+          x: estremo[0] + dimTesto * 0.35, y: estremo[1] - dimTesto * 0.35,
+          class: 'etichetta-traccia', 'font-size': dimTesto
+        });
+        et.textContent = '(tα′)';
+        g.appendChild(et);
+      }
     }
 
     // rette di ribaltamento: ogni punto ruota attorno alla cerniera, quindi nel
@@ -602,12 +620,6 @@ const Disegno = (function () {
       gruppo.appendChild(arco(0, y, y, 0, y, 'arco-ribaltamento'));
       gruppo.appendChild(linea(y, 0, y, -b.z1 - margine * 0.4, 'richiamo'));
     }
-    const fine = b.y1 + margine * 0.6;
-    const testo = el('text', {
-      x: fine * 0.72, y: fine * 0.72 + dimTesto, class: 'nota-disegno', 'font-size': dimTesto * 0.92
-    });
-    testo.textContent = 'ribaltamento con archi';
-    gruppo.appendChild(testo);
   }
 
   // I tre piani di proiezione ribaltati sul foglio: si incontrano nell'origine
@@ -674,7 +686,7 @@ const Disegno = (function () {
       const dove = vistaInVeraForma(opzioni.sezione.tipo);
       if (dove) {
         const nota = el('text', {
-          x: -b.x1, y: b.y1 + margine * 1.6, class: 'nota-disegno', 'font-size': dimTesto
+          x: -b.x1, y: b.y1 + margine * 2.6, class: 'nota-disegno', 'font-size': dimTesto
         });
         nota.textContent = 'La sezione è già in vera forma ' + dove + '.';
         g.appendChild(nota);
@@ -861,7 +873,7 @@ const Disegno = (function () {
     g.appendChild(presa);
     g.appendChild(linea(sinistra, yOrizzonte, destra, yOrizzonte, 'linea-orizzonte'));
     // sotto la linea, per non finire sopra l'etichetta di un punto di fuga
-    etichetta(g, "linea d'orizzonte", sinistra, yOrizzonte + dimTesto * 1.15, 'etichetta-orizzonte', dimTesto);
+    etichetta(g, 'L.O.', sinistra, yOrizzonte + dimTesto * 1.15, 'etichetta-orizzonte', dimTesto);
 
     const gv = el('g', { class: 'vista vista-prospettiva' });
     const ombreggiato = opzioni.resa === 'ombreggiato';
