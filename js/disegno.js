@@ -776,13 +776,14 @@ const Disegno = (function () {
     const minY = Math.min(...ruotati.map(v => v[1]));
     const minZ = Math.min(...ruotati.map(v => v[2]));
     const cx = (Math.min(...ruotati.map(v => v[0])) + Math.max(...ruotati.map(v => v[0]))) / 2;
+    // oltre il quadro, cioè dalla parte opposta all'osservatore
     const trasforma = v => {
       const r = Geo.matVec(m, v);
-      return [r[0] - cx, r[1] - minY + allontanamento, r[2] - minZ + quota];
+      return [r[0] - cx, -(r[1] - minY + allontanamento), r[2] - minZ + quota];
     };
     const collocato = {
       id: solido.id, nome: solido.nome, categoria: solido.categoria,
-      vertici: ruotati.map(v => [v[0] - cx, v[1] - minY + allontanamento, v[2] - minZ + quota]),
+      vertici: ruotati.map(v => [v[0] - cx, -(v[1] - minY + allontanamento), v[2] - minZ + quota]),
       facce: solido.facce,
       anelli: trasformaAnelli(solido.anelli, trasforma),
       trasforma: trasforma
@@ -904,9 +905,11 @@ const Disegno = (function () {
   function disegnaPiantaDellaScena(gruppo, solido, vista, fughe, scostamento, dimTesto) {
     const g = el('g', { class: 'pianta-scena' });
     const pianta = Geo.vistaOrtogonale('pianta');
+    // nella pianta della scena la profondità cresce verso l'alto: l'oggetto,
+    // che sta oltre il quadro, va sopra la retta del quadro e l'occhio sotto
     const inScena = p => {
       const q = pianta.project(p);      // q = [x, y]
-      return [q[0], scostamento - q[1]];  // la profondità cresce verso l'alto
+      return [q[0], scostamento + q[1]];
     };
 
     const b = limiti(solido);
@@ -928,7 +931,7 @@ const Disegno = (function () {
       g.appendChild(linea(a[0], a[1], c[0], c[1], 'pianta-scena-solido'));
     }
 
-    // il punto di vista e la sua distanza dal quadro
+    // il punto di vista, davanti al quadro, e la sua distanza
     const pv = [vista.x, scostamento + vista.distanza];
     g.appendChild(el('circle', { cx: pv[0], cy: pv[1], r: dimTesto * 0.3, class: 'punto-vista' }));
     etichetta(g, 'P.V.', pv[0] + dimTesto * 0.4, pv[1] + dimTesto * 0.9, 'etichetta-punto', dimTesto * 0.9);
@@ -939,7 +942,7 @@ const Disegno = (function () {
     fughe.forEach(f => {
       const u = f.direzione;
       if (Math.abs(u[1]) < 1e-9) return;
-      const passo = vista.distanza / u[1];
+      const passo = -vista.distanza / u[1];
       const incontro = [pv[0] + u[0] * passo, scostamento];
       g.appendChild(linea(pv[0], pv[1], incontro[0], incontro[1], 'linea-fuga'));
       g.appendChild(linea(incontro[0], incontro[1], f.p[0], f.p[1], 'allineamento-fuga'));

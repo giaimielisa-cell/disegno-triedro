@@ -227,7 +227,10 @@ const Geo = (function () {
 
   function vistaOrtogonale(nome) {
     if (nome === 'pianta') return { nome: 'pianta', etichetta: 'Pianta', project: v => [v[0], v[1]], viewDir: [0, 0, -1] };
-    if (nome === 'prospetto') return { nome: 'prospetto', etichetta: 'Prospetto', project: v => [v[0], -v[2]], viewDir: [0, 1, 0] };
+    // Primo diedro: il solido sta fra l'osservatore e il piano su cui si
+    // proietta. Davanti al P.V. significa y positivo, quindi l'osservatore
+    // guarda da y verso il piano, non dal lato opposto.
+    if (nome === 'prospetto') return { nome: 'prospetto', etichetta: 'Prospetto', project: v => [v[0], -v[2]], viewDir: [0, -1, 0] };
     if (nome === 'laterale') return { nome: 'laterale', etichetta: 'Vista laterale', project: v => [v[1], -v[2]], viewDir: [1, 0, 0] };
     throw new Error('vista ortogonale sconosciuta: ' + nome);
   }
@@ -326,10 +329,12 @@ const Geo = (function () {
   // distanza "distanza" davanti al quadro, all'altezza "altezza" sul piano
   // orizzontale. Un punto del quadro si proietta in vera grandezza, la linea
   // d'orizzonte sta all'altezza dell'occhio.
+  // L'osservatore sta dalla stessa parte da cui guarda nelle proiezioni
+  // ortogonali (y positivo) e l'oggetto è oltre il quadro, cioè a y negativo.
   function vistaProspettica(cfg) {
-    const O = [cfg.x, -cfg.distanza, cfg.altezza];
+    const O = [cfg.x, cfg.distanza, cfg.altezza];
     function project(P) {
-      const t = cfg.distanza / (P[1] + cfg.distanza);
+      const t = cfg.distanza / (cfg.distanza - P[1]);
       return [O[0] + t * (P[0] - O[0]), -(O[2] + t * (P[2] - O[2]))];
     }
     return {
@@ -340,10 +345,12 @@ const Geo = (function () {
       altezza: cfg.altezza,
       x: cfg.x,
       project: project,
-      // punto di fuga di una direzione orizzontale (uy deve essere positivo)
+      // punto di fuga di una direzione: dove la parallela condotta dall'occhio
+      // incontra il quadro
       puntoDiFuga: function (u) {
         if (Math.abs(u[1]) < 1e-9) return null; // direzione parallela al quadro
-        return [O[0] + cfg.distanza * u[0] / u[1], -(O[2] + cfg.distanza * u[2] / u[1])];
+        const passo = -cfg.distanza / u[1];
+        return [O[0] + passo * u[0], -(O[2] + passo * u[2])];
       }
     };
   }
