@@ -21,13 +21,14 @@ const Esploratore = (function () {
     opzioni: {
       spigoliNascosti: true,
       etichette: false,
-      assi: false,
+      triedro: false,
       griglia: false,
       richiami: true,
       piani: false,
       resa: 'wireframe',
       lineeDiFuga: true,
-      inquadraFughe: true
+      inquadraFughe: true,
+      conPianta: true
     }
   };
 
@@ -110,7 +111,7 @@ const Esploratore = (function () {
     };
     collega('opz-nascosti', 'spigoliNascosti');
     collega('opz-etichette', 'etichette');
-    collega('opz-assi', 'assi');
+    collega('opz-triedro', 'triedro');
     collega('opz-griglia', 'griglia');
     collega('opz-richiami', 'richiami');
     collega('opz-piani', 'piani');
@@ -157,6 +158,11 @@ const Esploratore = (function () {
 
     document.getElementById('opz-inquadra-fughe').addEventListener('change', e => {
       stato.opzioni.inquadraFughe = e.target.checked;
+      aggiorna();
+    });
+
+    document.getElementById('opz-pianta-scena').addEventListener('change', e => {
+      stato.opzioni.conPianta = e.target.checked;
       aggiorna();
     });
 

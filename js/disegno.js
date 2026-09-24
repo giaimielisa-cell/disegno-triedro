@@ -869,6 +869,16 @@ const Disegno = (function () {
         .forEach(f => puntoTrascinabile(g, f.p, f.etichetta, 'punto-fuga', dimTesto, f.nome));
     }
 
+    // la pianta della scena, disegnata sopra il quadro
+    if (opzioni.conPianta) {
+      const scostamento = riquadro.y0 - dimTesto * 2.5 - vista.distanza;
+      const ingombro = disegnaPiantaDellaScena(g, solido, vista, fughe, scostamento, dimTesto);
+      riquadro.x0 = Math.min(riquadro.x0, ingombro.x0);
+      riquadro.x1 = Math.max(riquadro.x1, ingombro.x1);
+      riquadro.y0 = Math.min(riquadro.y0, ingombro.y0);
+      riquadro.y1 = Math.max(riquadro.y1, ingombro.y1);
+    }
+
     svg.appendChild(g);
 
     // con l'inquadratura imposta il margine non può dipendere dal solido,
@@ -883,6 +893,62 @@ const Disegno = (function () {
     ].join(' '));
     svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
     return riquadro;
+  }
+
+  // Pianta della scena prospettica, disegnata sopra il quadro. L'ascissa è la
+  // stessa dell'immagine prospettica (un punto del quadro si proietta in sé),
+  // quindi i punti di fuga cadono esattamente sotto il punto in cui le
+  // parallele condotte dal punto di vista incontrano il quadro.
+  function disegnaPiantaDellaScena(gruppo, solido, vista, fughe, scostamento, dimTesto) {
+    const g = el('g', { class: 'pianta-scena' });
+    const pianta = Geo.vistaOrtogonale('pianta');
+    const inScena = p => {
+      const q = pianta.project(p);      // q = [x, y]
+      return [q[0], scostamento - q[1]];  // la profondità cresce verso l'alto
+    };
+
+    const b = limiti(solido);
+    const larghezza = Math.max(b.x1 - b.x0, 1);
+    const sinistra = Math.min(b.x0, vista.x) - larghezza * 0.6;
+    const destra = Math.max(b.x1, vista.x, ...fughe.map(f => f.p[0])) + larghezza * 0.3;
+
+    // il quadro, visto di taglio
+    g.appendChild(linea(sinistra, scostamento, destra, scostamento, 'quadro'));
+    etichetta(g, 'quadro', sinistra, scostamento - dimTesto * 0.4, 'etichetta-schema', dimTesto * 0.9);
+
+    // la pianta del solido
+    const topo = Geo.costruisciTopologia(solido);
+    for (const s of topo.spigoli) {
+      if (!s.netto) continue;
+      const a = inScena(solido.vertici[s.a]);
+      const c = inScena(solido.vertici[s.b]);
+      if (Math.hypot(c[0] - a[0], c[1] - a[1]) < 1e-6) continue;
+      g.appendChild(linea(a[0], a[1], c[0], c[1], 'pianta-scena-solido'));
+    }
+
+    // il punto di vista e la sua distanza dal quadro
+    const pv = [vista.x, scostamento + vista.distanza];
+    g.appendChild(el('circle', { cx: pv[0], cy: pv[1], r: dimTesto * 0.3, class: 'punto-vista' }));
+    etichetta(g, 'P.V.', pv[0] + dimTesto * 0.4, pv[1] + dimTesto * 0.9, 'etichetta-punto', dimTesto * 0.9);
+    g.appendChild(linea(pv[0], pv[1], pv[0], scostamento, 'richiamo'));
+
+    // le parallele alle direzioni dell'oggetto: dove toccano il quadro nascono
+    // i punti di fuga, che nell'immagine cadono sulla stessa verticale
+    fughe.forEach(f => {
+      const u = f.direzione;
+      if (Math.abs(u[1]) < 1e-9) return;
+      const passo = vista.distanza / u[1];
+      const incontro = [pv[0] + u[0] * passo, scostamento];
+      g.appendChild(linea(pv[0], pv[1], incontro[0], incontro[1], 'linea-fuga'));
+      g.appendChild(linea(incontro[0], incontro[1], f.p[0], f.p[1], 'allineamento-fuga'));
+    });
+
+    gruppo.appendChild(g);
+    return {
+      x0: sinistra, x1: destra,
+      y0: Math.min(scostamento - (b.y1 - b.y0) - dimTesto, scostamento) - dimTesto,
+      y1: pv[1] + dimTesto * 1.6
+    };
   }
 
   function puntiDiFuga(vista, alfaDeg) {
@@ -941,13 +1007,18 @@ const Disegno = (function () {
   function disegnaAssonometria(svg, solidoOriginale, vista, opzioni) {
     svuota(svg);
     const sezione = applicaSezione(solidoOriginale, opzioni);
-    const solido = sezione.solido;
+    // con il triedro il solido va collocato nello spazio come nelle proiezioni
+    // ortogonali: solo così, spostandolo, il movimento si vede anche qui
+    const solido = opzioni.triedro
+      ? collocaNelTriedro(sezione.solido, opzioni.posizione)
+      : sezione.solido;
     const g = el('g', {});
     const b = limiti(solido);
     const dimensione = Math.max(b.x1 - b.x0, b.y1 - b.y0, b.z1 - b.z0);
     const dimTesto = dimensione * 0.075;
 
     if (opzioni.griglia) disegnaGrigliaBase(g, solido, vista, dimensione);
+    if (opzioni.triedro) disegnaTriedro(g, solido, vista, dimTesto);
     if (opzioni.assi) {
       disegnaAssiRiferimento(g, vista, dimensione, dimTesto,
         { conDati: opzioni.assiConDati, inEvidenza: opzioni.assiInEvidenza });
@@ -997,6 +1068,58 @@ const Disegno = (function () {
         'font-size': dimTesto
       });
       t.textContent = testo;
+      gruppo.appendChild(t);
+    }
+  }
+
+  // Triedro di riferimento in assonometria: i tre piani di proiezione come
+  // angolo entro cui sta il solido, con gli assi lungo i loro spigoli. Serve a
+  // leggere la posizione del solido nello spazio, non solo la sua forma.
+  function disegnaTriedro(gruppo, solido, vista, dimTesto) {
+    const b = limiti(solido);
+    const versoX = (b.x0 + b.x1) / 2 < 0 ? -1 : 1;
+    const estX = versoX * Math.max(Math.abs(b.x0), Math.abs(b.x1)) * 1.25;
+    const estY = Math.max(b.y1, 1) * 1.25;
+    const estZ = Math.max(b.z1, 1) * 1.25;
+
+    const piani = [
+      { punti: [[0, 0, 0], [estX, 0, 0], [estX, estY, 0], [0, estY, 0]], sigla: 'P.O.' },
+      { punti: [[0, 0, 0], [estX, 0, 0], [estX, 0, estZ], [0, 0, estZ]], sigla: 'P.V.' },
+      { punti: [[0, 0, 0], [0, estY, 0], [0, estY, estZ], [0, 0, estZ]], sigla: 'P.L.' }
+    ];
+    for (const piano of piani) {
+      const punti = piano.punti.map(p => {
+        const q = vista.project(p);
+        return q[0].toFixed(2) + ',' + q[1].toFixed(2);
+      }).join(' ');
+      gruppo.appendChild(el('polygon', { points: punti, class: 'piano-proiezione' }));
+    }
+
+    const assi = [
+      { v: [estX * 1.12, 0, 0], nome: 'x' },
+      { v: [0, estY * 1.12, 0], nome: 'y' },
+      { v: [0, 0, estZ * 1.12], nome: 'z' }
+    ];
+    const origine = vista.project([0, 0, 0]);
+    for (const a of assi) {
+      const p = vista.project(a.v);
+      gruppo.appendChild(linea(origine[0], origine[1], p[0], p[1], 'asse-riferimento'));
+      const t = el('text', {
+        x: p[0] + dimTesto * 0.3, y: p[1] - dimTesto * 0.2,
+        class: 'etichetta-asse', 'font-size': dimTesto
+      });
+      t.textContent = a.nome;
+      gruppo.appendChild(t);
+    }
+
+    for (const piano of piani) {
+      const centro = piano.punti.reduce((s, p) => Geo.add(s, p), [0, 0, 0]).map(c => c / 4);
+      const q = vista.project(centro);
+      const t = el('text', {
+        x: q[0], y: q[1], class: 'etichetta-piano', 'font-size': dimTesto * 0.9,
+        'text-anchor': 'middle'
+      });
+      t.textContent = piano.sigla;
       gruppo.appendChild(t);
     }
   }

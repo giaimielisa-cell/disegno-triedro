@@ -431,6 +431,19 @@ text { font-family: "Segoe UI", system-ui, sans-serif; }
   vector-effect: non-scaling-stroke;
 }
 .etichetta-schema { fill: var(--inchiostro-tenue); }
+.pianta-scena-solido {
+  stroke: var(--inchiostro);
+  stroke-width: 1.4;
+  vector-effect: non-scaling-stroke;
+}
+/* collega il punto trovato sul quadro con il punto di fuga dell'immagine */
+.allineamento-fuga {
+  stroke: var(--evidenza);
+  stroke-width: 1;
+  stroke-dasharray: 4 4;
+  stroke-opacity: 0.7;
+  vector-effect: non-scaling-stroke;
+}
 /* serve solo a fissare l'inquadratura, non deve vedersi */
 .cornice-invisibile { stroke: none; }
 
