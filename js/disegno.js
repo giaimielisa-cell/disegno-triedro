@@ -151,7 +151,7 @@ const Disegno = (function () {
     const lunghezza = Math.max(b.x1 - b.x0, b.y1 - b.y0, b.z1 - b.z0) * 1.3;
     const g = el('g', { class: 'tracce-piano' });
 
-    function tracciaSu(assePiano, vista, riquadro, etichetta) {
+    function tracciaSu(assePiano, vista, riquadro, etichetta, versoEtichetta) {
       // retta { dot(n,p) = d } ∩ { assePiano = 0 }
       const versore = assePiano === 'z' ? [0, 0, 1] : [0, 1, 0];
       const direzione = Geo.cross(n, versore);
@@ -167,9 +167,12 @@ const Disegno = (function () {
       const tratto = ritagliaSegmento(pa, pc, riquadro);
       if (!tratto) return;
       g.appendChild(linea(tratto[0][0], tratto[0][1], tratto[1][0], tratto[1][1], 'traccia-piano'));
-      const estremo = tratto[0][1] < tratto[1][1] ? tratto[0] : tratto[1];  // il più in alto
+      const piuInAlto = tratto[0][1] < tratto[1][1] ? tratto[0] : tratto[1];
+      const piuInBasso = tratto[0][1] < tratto[1][1] ? tratto[1] : tratto[0];
+      const estremo = versoEtichetta === 'basso' ? piuInBasso : piuInAlto;
       const t = el('text', {
-        x: estremo[0] + dimTesto * 0.35, y: estremo[1] - dimTesto * 0.35,
+        x: estremo[0] + dimTesto * 0.35,
+        y: estremo[1] + (versoEtichetta === 'basso' ? dimTesto * 0.9 : -dimTesto * 0.35),
         class: 'etichetta-traccia', 'font-size': dimTesto
       });
       t.textContent = etichetta;
@@ -180,10 +183,12 @@ const Disegno = (function () {
     // alla linea di terra, dove le due si incontrano
     const m = dimensione * 0.25;
     const sinistra = b.x0 - dimensione, destra = b.y1 + dimensione;
+    // l'etichetta della prima traccia va in basso, altrimenti finisce
+    // sopra quella della linea di terra
     tracciaSu('z', Geo.vistaOrtogonale('pianta'),
-      { x0: sinistra, x1: destra, y0: 0, y1: b.y1 + m }, 'tα′');
+      { x0: sinistra, x1: destra, y0: 0, y1: b.y1 + m }, 'tα′', 'basso');
     tracciaSu('y', Geo.vistaOrtogonale('prospetto'),
-      { x0: sinistra, x1: destra, y0: -b.z1 - m, y1: 0 }, 'tα″');
+      { x0: sinistra, x1: destra, y0: -b.z1 - m, y1: 0 }, 'tα″', 'alto');
     gruppo.appendChild(g);
   }
 
