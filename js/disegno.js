@@ -503,19 +503,21 @@ const Disegno = (function () {
   // allontanato dal piano verticale e dal piano laterale. Così le tre viste
   // si dispongono da sole rispetto alla linea di terra e alla sua verticale,
   // alle distanze reali, come nella costruzione di Monge.
-  function collocaNelTriedro(solido, posizione) {
+  function collocaNelTriedro(solido, posizione, versoX) {
     const b0 = limiti(solido);
     const dimensione = Math.max(b0.x1 - b0.x0, b0.y1 - b0.y0, b0.z1 - b0.z0);
     const p = posizione || {};
     const allontanamento = p.allontanamento === undefined ? dimensione * 0.45 : p.allontanamento;
     const distanzaPL = p.distanzaPL === undefined ? dimensione * 0.45 : p.distanzaPL;
     const quota = p.quota === undefined ? 0 : p.quota;
+    versoX = versoX || -1;
 
-    const chiave = allontanamento + '/' + distanzaPL + '/' + quota;
+    const chiave = allontanamento + '/' + distanzaPL + '/' + quota + '/' + versoX;
     if (solido._collocato && solido._collocato.chiave === chiave) return solido._collocato.solido;
 
     const b = b0;
-    const dx = -distanzaPL - b.x1;      // a sinistra del piano laterale
+    // di là dal piano laterale, da una parte o dall'altra secondo il verso
+    const dx = versoX < 0 ? -distanzaPL - b.x1 : distanzaPL - b.x0;
     const dy = allontanamento - b.y0;   // davanti al piano verticale
     const dz = quota - b.z0;            // appoggiato al P.O. o sollevato di "quota"
     const trasla = v => [v[0] + dx, v[1] + dy, v[2] + dz];
@@ -1009,8 +1011,14 @@ const Disegno = (function () {
     const sezione = applicaSezione(solidoOriginale, opzioni);
     // con il triedro il solido va collocato nello spazio come nelle proiezioni
     // ortogonali: solo così, spostandolo, il movimento si vede anche qui
+    let versoX = -1;
+    if (opzioni.triedro) {
+      const b0 = limiti(sezione.solido);
+      versoX = versoDelTriedro(vista,
+        (b0.x1 - b0.x0) * 1.6, (b0.y1 - b0.y0) * 1.6, (b0.z1 - b0.z0) * 1.25);
+    }
     const solido = opzioni.triedro
-      ? collocaNelTriedro(sezione.solido, opzioni.posizione)
+      ? collocaNelTriedro(sezione.solido, opzioni.posizione, versoX)
       : sezione.solido;
     const g = el('g', {});
     const b = limiti(solido);
@@ -1018,7 +1026,7 @@ const Disegno = (function () {
     const dimTesto = dimensione * 0.075;
 
     if (opzioni.griglia) disegnaGrigliaBase(g, solido, vista, dimensione);
-    if (opzioni.triedro) disegnaTriedro(g, solido, vista, dimTesto);
+    if (opzioni.triedro) disegnaTriedro(g, solido, vista, dimTesto, versoX);
     if (opzioni.assi) {
       disegnaAssiRiferimento(g, vista, dimensione, dimTesto,
         { conDati: opzioni.assiConDati, inEvidenza: opzioni.assiInEvidenza });
@@ -1075,9 +1083,18 @@ const Disegno = (function () {
   // Triedro di riferimento in assonometria: i tre piani di proiezione come
   // angolo entro cui sta il solido, con gli assi lungo i loro spigoli. Serve a
   // leggere la posizione del solido nello spazio, non solo la sua forma.
-  function disegnaTriedro(gruppo, solido, vista, dimTesto) {
+  // Da che parte collocare il solido perché, ribaltando i piani sul foglio, il
+  // P.L. cada a destra del P.V., come nelle proiezioni ortogonali. I tipi di
+  // assonometria orientano diversamente i due assi orizzontali, quindi il lato
+  // giusto non è sempre lo stesso.
+  function versoDelTriedro(vista, estXassoluto, estY, estZ) {
+    const centroPL = vista.project([0, estY / 2, estZ / 2]);
+    const conVerso = segno => vista.project([segno * estXassoluto / 2, 0, estZ / 2]);
+    return centroPL[0] > conVerso(1)[0] ? 1 : -1;
+  }
+
+  function disegnaTriedro(gruppo, solido, vista, dimTesto, versoX) {
     const b = limiti(solido);
-    const versoX = (b.x0 + b.x1) / 2 < 0 ? -1 : 1;
     const estX = versoX * Math.max(Math.abs(b.x0), Math.abs(b.x1)) * 1.25;
     const estY = Math.max(b.y1, 1) * 1.25;
     const estZ = Math.max(b.z1, 1) * 1.25;
