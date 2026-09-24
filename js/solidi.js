@@ -13,6 +13,61 @@ const Solidi = (function () {
     const cy = (Math.min(...ys) + Math.max(...ys)) / 2;
     const minZ = Math.min(...zs);
     solido.vertici = v.map(p => [p[0] - cx, p[1] - cy, p[2] - minZ]);
+    return ordinaVertici(solido);
+  }
+
+  // L'ordine dei vertici è l'ordine delle lettere: A è il primo, B il secondo e
+  // così via. Perché le etichette si leggano allo stesso modo in ogni vista e
+  // con ogni metodo, l'ordine segue sempre la stessa regola:
+  //   1. si parte dalla faccia inferiore e si sale di quota in quota;
+  //   2. dentro ogni quota si gira in senso antiorario, come si vede in pianta;
+  //   3. si comincia dal vertice davanti a sinistra sul foglio.
+  // In un cubo vengono così A B C D sulla faccia d'appoggio ed E F G H su
+  // quella superiore, con E sopra ad A, F sopra a B e via di seguito.
+  const DUE_PI = 2 * Math.PI;
+
+  function ordinaVertici(solido) {
+    const v = solido.vertici;
+    const eps = 1e-6;
+    const cx = v.reduce((s, p) => s + p[0], 0) / v.length;
+    const cy = v.reduce((s, p) => s + p[1], 0) / v.length;
+
+    const quote = [];
+    v.forEach(p => { if (!quote.some(q => Math.abs(q - p[2]) < eps)) quote.push(p[2]); });
+    quote.sort((a, b) => a - b);
+
+    // A è il vertice della faccia inferiore che sta più avanti e più a
+    // sinistra sul foglio; da lì parte il giro, uguale a ogni quota.
+    const base = v.filter(p => Math.abs(p[2] - quote[0]) < eps && Math.hypot(p[0] - cx, p[1] - cy) > eps);
+    const primo = base.slice().sort((a, b) =>
+      ((b[0] - cx) + (b[1] - cy)) - ((a[0] - cx) + (a[1] - cy)) || (b[0] - a[0]))[0];
+    const partenza = primo ? Math.atan2(primo[1] - cy, primo[0] - cx) : Math.PI / 4;
+
+    function giroDi(p) {
+      const dx = p[0] - cx, dy = p[1] - cy;
+      if (Math.hypot(dx, dy) < eps) return -1;          // sull'asse: viene prima
+      let a = Math.atan2(dy, dx) - partenza;
+      a = ((a % DUE_PI) + DUE_PI) % DUE_PI;
+      return a > DUE_PI - eps ? 0 : a;                  // 360° equivale a 0°
+    }
+    function raggioDi(p) { return Math.hypot(p[0] - cx, p[1] - cy); }
+
+    const ordine = [];
+    for (const q of quote) {
+      const livello = [];
+      v.forEach((p, i) => { if (Math.abs(p[2] - q) < eps) livello.push(i); });
+      livello.sort((a, b) => {
+        const d = giroDi(v[a]) - giroDi(v[b]);
+        if (Math.abs(d) > eps) return d;
+        return raggioDi(v[a]) - raggioDi(v[b]);
+      });
+      livello.forEach(i => ordine.push(i));
+    }
+
+    const nuovoIndice = [];
+    ordine.forEach((vecchio, nuovo) => { nuovoIndice[vecchio] = nuovo; });
+    solido.vertici = ordine.map(i => v[i]);
+    solido.facce = solido.facce.map(f => f.map(i => nuovoIndice[i]));
     return solido;
   }
 
