@@ -11,9 +11,12 @@
   --bordo: #c9c6bd;
   --richiamo: #8a9bb0;
   --evidenza: #b4451f;
-  --raggio: 10px;
+  --raggio: 9px;
   --spessore-grosso: 2px;
   --spessore-fine: 1px;
+  /* i comandi devono lasciare il più possibile al disegno */
+  --altezza-comando: 40px;
+  --testo-comando: 0.92rem;
 }
 
 * { box-sizing: border-box; }
@@ -26,8 +29,8 @@ html, body {
   background: var(--carta);
   color: var(--inchiostro);
   font-family: "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
-  font-size: 17px;
-  line-height: 1.45;
+  font-size: 15px;
+  line-height: 1.4;
   overscroll-behavior: none;
 }
 
@@ -39,56 +42,62 @@ body { display: flex; flex-direction: column; }
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  padding: 10px 20px;
+  gap: 12px;
+  padding: 6px 16px;
   background: var(--carta-chiara);
   border-bottom: 1px solid var(--bordo);
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
 
-.marchio { display: flex; align-items: center; gap: 12px; }
-.logo svg { width: 34px; height: 34px; fill: none; stroke: var(--blu); stroke-width: 2; }
-.barra h1 { font-size: 1.5rem; margin: 0; letter-spacing: 0.06em; text-transform: uppercase; }
-.sottotitolo { margin: 0; font-size: 0.82rem; color: var(--inchiostro-tenue); }
+.marchio { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.logo svg { width: 26px; height: 26px; fill: none; stroke: var(--blu); stroke-width: 2; }
+.barra h1 { font-size: 1.15rem; margin: 0; letter-spacing: 0.06em; text-transform: uppercase; }
+.sottotitolo {
+  margin: 0; font-size: 0.76rem; color: var(--inchiostro-tenue);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 
-.menu-principale { display: flex; gap: 8px; }
+.menu-principale { display: flex; gap: 6px; flex: none; }
 .menu-principale button {
   font: inherit;
-  padding: 10px 20px;
+  font-size: var(--testo-comando);
+  padding: 6px 14px;
   border: 1px solid var(--bordo);
   background: var(--carta);
   border-radius: var(--raggio);
   cursor: pointer;
-  min-height: 46px;
+  min-height: var(--altezza-comando);
 }
 .menu-principale button.attivo { background: var(--blu); color: #fff; border-color: var(--blu); }
 
 /* --- Comandi principali --- */
 
 main { flex: 1; display: flex; flex-direction: column; min-height: 0; }
-section { flex: 1; display: flex; flex-direction: column; min-height: 0; padding: 14px 20px 18px; gap: 12px; }
+section { flex: 1; display: flex; flex-direction: column; min-height: 0; padding: 8px 16px 12px; gap: 8px; }
 
-.riga-comandi { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+.riga-comandi { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 
-.campo { display: flex; align-items: center; gap: 10px; font-weight: 600; }
+.campo { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: var(--testo-comando); }
 .campo select {
   font: inherit;
-  padding: 10px 12px;
-  min-height: 46px;
+  font-size: var(--testo-comando);
+  padding: 6px 10px;
+  min-height: var(--altezza-comando);
   border: 1px solid var(--bordo);
   border-radius: var(--raggio);
   background: var(--carta-chiara);
-  min-width: 260px;
+  min-width: 240px;
 }
 
-.interruttore { display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 6px 0; }
-.interruttore input { width: 22px; height: 22px; accent-color: var(--blu); }
+.interruttore { display: flex; align-items: center; gap: 9px; cursor: pointer; padding: 4px 0; }
+.interruttore input { width: 19px; height: 19px; accent-color: var(--blu); }
 
-.schede { display: flex; gap: 6px; flex-wrap: wrap; border-bottom: 1px solid var(--bordo); }
+.schede { display: flex; gap: 5px; flex-wrap: wrap; border-bottom: 1px solid var(--bordo); }
 .schede button {
   font: inherit;
-  padding: 11px 18px;
-  min-height: 46px;
+  font-size: var(--testo-comando);
+  padding: 7px 14px;
+  min-height: var(--altezza-comando);
   border: 1px solid var(--bordo);
   border-bottom: none;
   border-radius: var(--raggio) var(--raggio) 0 0;
@@ -101,17 +110,17 @@ section { flex: 1; display: flex; flex-direction: column; min-height: 0; padding
 
 /* --- Selettore della vista singola (schermi stretti) --- */
 
-.selettore-vista { display: flex; align-items: center; gap: 12px; }
-.scelta-viste { display: flex; gap: 6px; flex: 1; }
+.selettore-vista { display: flex; align-items: center; gap: 10px; }
+.scelta-viste { display: flex; gap: 5px; flex: 1; }
 .scelta-viste button {
-  font: inherit; font-size: 0.92rem; flex: 1;
-  padding: 10px 6px; min-height: 46px;
+  font: inherit; font-size: 0.86rem; flex: 1;
+  padding: 6px 4px; min-height: var(--altezza-comando);
   border: 1px solid var(--bordo); background: var(--carta);
   border-radius: var(--raggio); cursor: pointer;
 }
 .scelta-viste button.attivo { background: var(--blu); color: #fff; border-color: var(--blu); }
 
-.schema-disposizione { width: 68px; height: 50px; flex: none; }
+.schema-disposizione { width: 52px; height: 38px; flex: none; }
 .schema-disposizione rect { fill: none; stroke: var(--inchiostro-tenue); stroke-width: 2; }
 .schema-disposizione rect.attiva { fill: var(--blu-chiaro); stroke: var(--blu); }
 .schema-disposizione line.schema-richiamo { stroke: var(--richiamo); stroke-width: 1.5; stroke-dasharray: 3 3; }
@@ -136,12 +145,15 @@ section { flex: 1; display: flex; flex-direction: column; min-height: 0; padding
 }
 .tela.nascosta { display: none; }
 .tela figcaption {
-  padding: 8px 14px;
-  font-size: 0.86rem;
+  padding: 5px 12px;
+  font-size: 0.78rem;
   font-weight: 600;
   color: var(--inchiostro-tenue);
   border-bottom: 1px solid var(--bordo);
   background: var(--carta);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .tela svg { flex: 1; width: 100%; min-height: 0; touch-action: none; display: block; }
 .tela.trascinabile svg { cursor: grab; }
@@ -322,7 +334,8 @@ text { font-family: "Segoe UI", system-ui, sans-serif; }
 .alternanza button.attivo { background: var(--blu); color: #fff; border-color: var(--blu); }
 
 #apri-pannello, #chiudi-pannello {
-  font: inherit; padding: 10px 16px; min-height: 46px;
+  font: inherit; font-size: var(--testo-comando);
+  padding: 6px 14px; min-height: var(--altezza-comando);
   border: 1px solid var(--bordo); background: var(--carta);
   border-radius: var(--raggio); cursor: pointer;
 }
@@ -487,13 +500,37 @@ text { font-family: "Segoe UI", system-ui, sans-serif; }
   .opzioni { grid-template-columns: repeat(2, 1fr); }
   .carta-opzione { height: 30vh; }
   .riquadro-domanda { height: 34vh; }
+
+  /* anche in Palestra i comandi devono lasciare spazio alle figure */
+  .gruppo-scelte { gap: 4px; }
+  .gruppo-scelte button { font-size: 0.8rem; padding: 5px 8px; min-height: 34px; }
+  .etichetta-gruppo { font-size: 0.8rem; margin-right: 0; }
+  .tabellone { padding: 5px 10px; gap: 14px; font-size: 0.82rem; }
+  .tabellone b { font-size: 1rem; margin-left: 4px; }
+  /* la serie migliore resta leggibile nelle statistiche in fondo */
+  .tabellone span:nth-child(3) { display: none; }
+  .domanda { font-size: 0.95rem; margin: 2px 0; }
+  .esercizio { gap: 8px; }
 }
 
 /* --- Schermi stretti: l'impianto si riorganizza --- */
 
 @media (max-width: 860px) {
-  body { font-size: 16px; }
-  section { padding: 10px 12px 14px; }
+  body { font-size: 14px; }
+  :root { --altezza-comando: 38px; --testo-comando: 0.88rem; }
+  section { padding: 6px 10px 10px; gap: 6px; }
+
+  /* l'intestazione si riduce a una riga sola: il sottotitolo qui non serve */
+  .barra { padding: 5px 10px; gap: 8px; }
+  .logo svg { width: 22px; height: 22px; }
+  .barra h1 { font-size: 1rem; }
+  .sottotitolo { display: none; }
+  .menu-principale button { padding: 5px 10px; }
+
+  .riga-comandi { gap: 8px; flex-wrap: nowrap; }
+  .schede button { padding: 6px 10px; }
+  .selettore-vista { gap: 8px; }
+
   .solo-stretto { display: block; }
   .tele { flex-direction: column; }
   .pannello {
@@ -507,8 +544,11 @@ text { font-family: "Segoe UI", system-ui, sans-serif; }
     transition: transform 0.2s ease;
   }
   .pannello.aperto { transform: none; }
+  /* il menu a tendina e il pulsante dei comandi stanno sulla stessa riga */
+  .campo { flex: 1; min-width: 0; }
   .campo select { min-width: 0; flex: 1; }
-  .campo { flex: 1 1 100%; }
+  .campo > span { display: none; }
+  #apri-pannello { flex: none; padding: 6px 12px; }
   .schede { overflow-x: auto; flex-wrap: nowrap; }
   .schede button { white-space: nowrap; }
 }
