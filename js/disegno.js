@@ -210,43 +210,48 @@ const Disegno = (function () {
   // Ribaltamento della sezione sul P.O. nelle proiezioni ortogonali: la figura
   // arriva in vera grandezza nella posizione che le assegna la costruzione,
   // legata alla pianta dalle rette perpendicolari alla traccia.
-  function disegnaRibaltamento(gruppo, solido, dimensione, dimTesto) {
+  // Ribaltamento della sezione sul P.V., attorno alla seconda traccia tα'':
+  // ruota tutto il piano, quindi arriva sul prospetto anche la prima traccia,
+  // perpendicolare alla cerniera. Gli elementi ribaltati si indicano fra
+  // parentesi, come vuole la convenzione.
+  function disegnaRibaltamento(gruppo, solido, dimensione, dimTesto, opzioni) {
     const anelli = solido.anelli;
     if (!anelli || !anelli.length) return false;
     const b = limiti(solido);
-    const centro = [(b.x0 + b.x1) / 2, (b.y0 + b.y1) / 2, (b.z0 + b.z1) / 2];
-    const r = Sezione.ribaltamentoSulPO(anelli, centro);
+    const centroProspetto = [(b.x0 + b.x1) / 2, 0, (b.z0 + b.z1) / 2];
+    const r = Sezione.ribaltamentoSulPV(anelli, centroProspetto);
     if (!r) return false;
 
-    // se la cerniera cade lontanissima (piano quasi orizzontale) il disegno
-    // diventerebbe enorme: in quel caso si rinuncia al ribaltamento
-    const distanzaCerniera = Math.abs(Geo.dot(Geo.sub(centro, r.cerniera.punto),
-      Geo.normalize(Geo.cross([0, 0, 1], r.cerniera.direzione))));
-    if (distanzaCerniera > dimensione * 4) return false;
-
-    const pianta = Geo.vistaOrtogonale('pianta');
+    const prospetto = Geo.vistaOrtogonale('prospetto');
     const g = el('g', { class: 'ribaltamento-sezione' });
 
-    // La figura ribaltata viene allontanata lungo la stessa perpendicolare,
-    // quanto basta perché non si sovrapponga alle viste: la costruzione non
-    // cambia, restano perpendicolari alla cerniera anche le rette di richiamo.
-    const fineViste = Math.max(...solido.vertici.map(v => Geo.dot(v, r.perpendicolare)));
-    const inizioFigura = Math.min(...[].concat.apply([], r.anelli).map(p => Geo.dot(p, r.perpendicolare)));
-    const scostamento = Math.max(0, fineViste + dimensione * 0.35 - inizioFigura);
-    const spostamento = Geo.scale(r.perpendicolare, scostamento);
-    const ribaltati = r.anelli.map(a => a.map(p => Geo.add(p, spostamento)));
+    // la prima traccia ribaltata, perpendicolare alla cerniera
+    if (r.tracciaRibaltata) {
+      const ta = prospetto.project(r.tracciaRibaltata.a);
+      const tb = prospetto.project(r.tracciaRibaltata.b);
+      g.appendChild(linea(ta[0], ta[1], tb[0], tb[1], 'traccia-ribaltata'));
+      // l'etichetta va all'estremo che cade più lontano dalle viste
+      const estremo = Math.hypot(ta[0] - b.x0, ta[1]) > Math.hypot(tb[0] - b.x0, tb[1]) ? ta : tb;
+      const et = el('text', {
+        x: estremo[0] + dimTesto * 0.35, y: estremo[1] + dimTesto * 0.9,
+        class: 'etichetta-traccia', 'font-size': dimTesto
+      });
+      et.textContent = '(tα′)';
+      g.appendChild(et);
+    }
 
-    // rette di ribaltamento: ogni punto si sposta perpendicolarmente alla traccia
+    // rette di ribaltamento: ogni punto ruota attorno alla cerniera, quindi nel
+    // disegno si sposta lungo la perpendicolare a tα''
     const passo = Math.max(1, Math.ceil(anelli[0].length / 12));
     anelli.forEach((anello, i) => {
       for (let k = 0; k < anello.length; k += passo) {
-        const p1 = pianta.project(anello[k]);
-        const p2 = pianta.project(ribaltati[i][k]);
+        const p1 = prospetto.project(anello[k]);
+        const p2 = prospetto.project(r.anelli[i][k]);
         g.appendChild(linea(p1[0], p1[1], p2[0], p2[1], 'richiamo'));
       }
     });
 
-    const anelli2D = ribaltati.map(a => a.map(p => pianta.project(p)));
+    const anelli2D = r.anelli.map(a => a.map(p => prospetto.project(p)));
     disegnaTratteggio(g, anelli2D, dimensione * 0.05);
     for (const anello of anelli2D) {
       g.appendChild(el('polygon', {
@@ -255,18 +260,45 @@ const Disegno = (function () {
       }));
     }
 
+    if (opzioni && opzioni.etichette) {
+      etichettaPuntiSezione(g, anelli, r.anelli, prospetto, dimTesto);
+    }
+
     const centroRibaltato = anelli2D[0].reduce((s, p) => [s[0] + p[0], s[1] + p[1]], [0, 0])
       .map(c => c / anelli2D[0].length);
+    // la didascalia sta sopra la figura ribaltata, dove non incontra le viste
     const titolo = el('text', {
-      x: centroRibaltato[0], y: Math.max(...anelli2D[0].map(p => p[1])) + dimTesto * 1.4,
+      x: centroRibaltato[0], y: Math.min(...anelli2D[0].map(p => p[1])) - dimTesto * 0.9,
       class: 'titolo-vista', 'font-size': dimTesto, 'text-anchor': 'middle'
     });
-    titolo.textContent = scostamento > 0
-      ? 'sezione ribaltata attorno a tα′ (allontanata per chiarezza)'
-      : 'sezione ribaltata attorno a tα′';
+    titolo.textContent = 'sezione ribaltata sul P.V. attorno a tα″';
     g.appendChild(titolo);
     gruppo.appendChild(g);
     return true;
+  }
+
+  // I punti della sezione si numerano; i loro ribaltati portano lo stesso
+  // numero fra parentesi, secondo la convenzione.
+  function etichettaPuntiSezione(gruppo, anelli, ribaltati, vista, dimTesto) {
+    if (anelli[0].length > 12) return;   // sui solidi curvi sarebbero illeggibili
+    let numero = 1;
+    anelli.forEach((anello, i) => {
+      anello.forEach((punto, k) => {
+        const p = vista.project(punto);
+        const q = vista.project(ribaltati[i][k]);
+        const scrivi = (posizione, testo) => {
+          const t = el('text', {
+            x: posizione[0] + dimTesto * 0.35, y: posizione[1] - dimTesto * 0.3,
+            class: 'etichetta-vertice', 'font-size': dimTesto * 0.9
+          });
+          t.textContent = testo;
+          gruppo.appendChild(t);
+        };
+        scrivi(p, String(numero));
+        scrivi(q, '(' + numero + ')');
+        numero++;
+      });
+    });
   }
 
   // --- Segmenti proiettati di un solido in una vista ---
@@ -539,7 +571,7 @@ const Disegno = (function () {
         });
         nota.textContent = 'La sezione è già in vera forma ' + dove + '.';
         g.appendChild(nota);
-      } else if (!disegnaRibaltamento(g, solido, dimensione, dimTesto)) {
+      } else if (!disegnaRibaltamento(g, solido, dimensione, dimTesto, opzioni)) {
         disegnaVeraForma(g, solido.anelli, [b.y1 + margine * 3, -b.z1], dimensione, dimTesto);
       }
     }

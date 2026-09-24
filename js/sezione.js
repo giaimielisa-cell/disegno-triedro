@@ -227,6 +227,56 @@ const Sezione = (function () {
     };
   }
 
+  // Ribaltamento del piano di sezione sul piano verticale, attorno alla propria
+  // seconda traccia tα'', che resta ferma ed è la cerniera. Ruota tutto il
+  // piano: oltre alla figura di sezione si ribalta anche la prima traccia, che
+  // arriva sul P.V. perpendicolare a tα''.
+  function ribaltamentoSulPV(anelli, centroProspetto) {
+    if (!anelli.length) return null;
+    const n = Geo.normaleFaccia(anelli[0]);
+    const denominatore = n[0] * n[0] + n[2] * n[2];
+    if (denominatore < 1e-9) return null;   // piano parallelo al P.V.: già in vera forma
+    const d = Geo.dot(n, anelli[0][0]);
+
+    const v = Geo.normalize(Geo.cross(n, [0, 1, 0]));   // direzione della cerniera tα''
+    const q0 = [d * n[0] / denominatore, 0, d * n[2] / denominatore];
+    const dentroIlPiano = Geo.normalize(Geo.cross(v, n));      // nel piano, ⊥ cerniera
+    const dentroIlPV = Geo.normalize(Geo.cross(v, [0, 1, 0])); // nel P.V., ⊥ cerniera
+
+    function ribalta(P, verso) {
+      const s = Geo.sub(P, q0);
+      const lungo = Geo.dot(s, v);
+      const distanza = Geo.dot(s, dentroIlPiano);
+      return Geo.add(Geo.add(q0, Geo.scale(v, lungo)), Geo.scale(dentroIlPV, distanza * verso));
+    }
+
+    // dei due versi possibili si sceglie quello che porta la figura dalla parte
+    // più libera, lontano dal prospetto del solido
+    const verso = [1, -1].map(s => {
+      const punti = anelli[0].map(P => ribalta(P, s));
+      const centro = punti.reduce((a, p) => Geo.add(a, p), [0, 0, 0]).map(c => c / punti.length);
+      return { s: s, distanza: Math.hypot(centro[0] - centroProspetto[0], centro[2] - centroProspetto[2]) };
+    }).sort((a, b) => b.distanza - a.distanza)[0].s;
+
+    // la prima traccia tα' (piano ∩ P.O.) ribaltata insieme al resto del piano
+    const denomOriz = n[0] * n[0] + n[1] * n[1];
+    let tracciaRibaltata = null;
+    if (denomOriz > 1e-9) {
+      const u = Geo.normalize(Geo.cross(n, [0, 0, 1]));
+      const p0 = [d * n[0] / denomOriz, d * n[1] / denomOriz, 0];
+      tracciaRibaltata = {
+        a: ribalta(Geo.add(p0, Geo.scale(u, -60)), verso),
+        b: ribalta(Geo.add(p0, Geo.scale(u, 60)), verso)
+      };
+    }
+
+    return {
+      anelli: anelli.map(anello => anello.map(P => ribalta(P, verso))),
+      cerniera: { punto: q0, direzione: v },
+      tracciaRibaltata: tracciaRibaltata
+    };
+  }
+
   // Rettangolo che rappresenta il piano di sezione, esteso attorno al solido.
   function rettangoloDelPiano(p, margine) {
     const b = p.limiti;
@@ -246,5 +296,5 @@ const Sezione = (function () {
     ];
   }
 
-  return { piano, taglia, veraForma, ribaltamentoSulPO, rettangoloDelPiano };
+  return { piano, taglia, veraForma, ribaltamentoSulPO, ribaltamentoSulPV, rettangoloDelPiano };
 })();
