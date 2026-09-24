@@ -957,7 +957,7 @@ const Palestra = (function () {
     const solido = Solidi.prismaRettangolare(intero(55, 70), intero(40, 55), intero(45, 62));
     const posizione = { allontanamento: intero(20, 40), quota: 0 };
     const vista = Geo.vistaProspettica({ x: 0, distanza: distanza, altezza: altezza });
-    const collocato = Disegno.collocaDietroIlQuadro(solido, posizione, alfa);
+    const collocato = Disegno.collocaPerProspettiva(solido, posizione, alfa);
     const fughe = Disegno.puntiDiFuga(vista, alfa).filter(f => !f.coincidePP);
 
     let bersagli = [];

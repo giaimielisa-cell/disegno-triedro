@@ -20,6 +20,17 @@ const Disegno = (function () {
     return el('line', { x1: x1, y1: y1, x2: x2, y2: y2, class: classe });
   }
 
+  // Arco di centro l'origine, usato per ribaltare le profondità dalla pianta
+  // alla vista laterale.
+  function arco(x1, y1, x2, y2, raggio, classe) {
+    return el('path', {
+      d: 'M ' + x1.toFixed(2) + ' ' + y1.toFixed(2) +
+         ' A ' + Math.abs(raggio).toFixed(2) + ' ' + Math.abs(raggio).toFixed(2) +
+         ' 0 0 0 ' + x2.toFixed(2) + ' ' + y2.toFixed(2),
+      class: classe
+    });
+  }
+
   function limiti(solido) {
     const v = solido.vertici;
     return {
@@ -182,7 +193,7 @@ const Disegno = (function () {
     // ciascuna traccia resta nella fascia della propria vista e arriva fino
     // alla linea di terra, dove le due si incontrano
     const m = dimensione * 0.25;
-    const sinistra = b.x0 - dimensione, destra = b.y1 + dimensione;
+    const sinistra = -b.x1 - dimensione, destra = b.y1 + dimensione;
     // l'etichetta della prima traccia va in basso, altrimenti finisce
     // sopra quella della linea di terra
     tracciaSu('z', Geo.vistaOrtogonale('pianta'),
@@ -236,7 +247,7 @@ const Disegno = (function () {
       const tb = prospetto.project(r.tracciaRibaltata.b);
       g.appendChild(linea(ta[0], ta[1], tb[0], tb[1], 'traccia-ribaltata'));
       // l'etichetta va all'estremo che cade più lontano dalle viste
-      const estremo = Math.hypot(ta[0] - b.x0, ta[1]) > Math.hypot(tb[0] - b.x0, tb[1]) ? ta : tb;
+      const estremo = Math.hypot(ta[0] + b.x1, ta[1]) > Math.hypot(tb[0] + b.x1, tb[1]) ? ta : tb;
       const et = el('text', {
         x: estremo[0] + dimTesto * 0.35, y: estremo[1] + dimTesto * 0.9,
         class: 'etichetta-traccia', 'font-size': dimTesto
@@ -503,21 +514,19 @@ const Disegno = (function () {
   // allontanato dal piano verticale e dal piano laterale. Così le tre viste
   // si dispongono da sole rispetto alla linea di terra e alla sua verticale,
   // alle distanze reali, come nella costruzione di Monge.
-  function collocaNelTriedro(solido, posizione, versoX) {
+  function collocaNelTriedro(solido, posizione) {
     const b0 = limiti(solido);
     const dimensione = Math.max(b0.x1 - b0.x0, b0.y1 - b0.y0, b0.z1 - b0.z0);
     const p = posizione || {};
     const allontanamento = p.allontanamento === undefined ? dimensione * 0.45 : p.allontanamento;
     const distanzaPL = p.distanzaPL === undefined ? dimensione * 0.45 : p.distanzaPL;
     const quota = p.quota === undefined ? 0 : p.quota;
-    versoX = versoX || -1;
-
-    const chiave = allontanamento + '/' + distanzaPL + '/' + quota + '/' + versoX;
+    const chiave = allontanamento + '/' + distanzaPL + '/' + quota;
     if (solido._collocato && solido._collocato.chiave === chiave) return solido._collocato.solido;
 
     const b = b0;
-    // di là dal piano laterale, da una parte o dall'altra secondo il verso
-    const dx = versoX < 0 ? -distanzaPL - b.x1 : distanzaPL - b.x0;
+    // primo triedro: tutte le coordinate positive
+    const dx = distanzaPL - b.x0;       // di là dal piano laterale
     const dy = allontanamento - b.y0;   // davanti al piano verticale
     const dz = quota - b.z0;            // appoggiato al P.O. o sollevato di "quota"
     const trasla = v => [v[0] + dx, v[1] + dy, v[2] + dz];
@@ -550,7 +559,7 @@ const Disegno = (function () {
   function estensione(solido, margine) {
     const b = limiti(solido);
     return {
-      sinistra: b.x0 - margine,
+      sinistra: -b.x1 - margine,
       destra: b.y1 + margine,
       alto: -b.z1 - margine,
       basso: b.y1 + margine,
@@ -563,7 +572,7 @@ const Disegno = (function () {
     const b = e.b;
     // con una sola vista si traccia il solo tratto di L.T. che le compete
     const da = vistaSingola === 'laterale' ? b.y0 - margine : e.sinistra;
-    const a = vistaSingola === 'laterale' ? b.y1 + margine : (vistaSingola ? b.x1 + margine : e.destra);
+    const a = vistaSingola === 'laterale' ? b.y1 + margine : (vistaSingola ? -b.x0 + margine : e.destra);
     gruppo.appendChild(linea(da, 0, a, 0, 'linea-terra'));
     if (!vistaSingola) gruppo.appendChild(linea(0, e.alto, 0, e.basso, 'linea-terra'));
     const t = el('text', {
@@ -582,22 +591,22 @@ const Disegno = (function () {
     const ys = valoriDistinti(solido.vertici.map(v => v[1]), 8);
 
     // prospetto -> pianta: richiami verticali
-    for (const x of xs) gruppo.appendChild(linea(x, -b.z1 - margine * 0.4, x, b.y1 + margine * 0.4, 'richiamo'));
+    for (const x of xs) gruppo.appendChild(linea(-x, -b.z1 - margine * 0.4, -x, b.y1 + margine * 0.4, 'richiamo'));
     // prospetto -> vista laterale: richiami orizzontali
-    for (const z of zs) gruppo.appendChild(linea(b.x0 - margine * 0.4, -z, b.y1 + margine * 0.4, -z, 'richiamo'));
-    // pianta -> linea di ribaltamento a 45° -> vista laterale
+    for (const z of zs) gruppo.appendChild(linea(e.sinistra, -z, b.y1 + margine * 0.4, -z, 'richiamo'));
+    // pianta -> arco centrato nell'origine -> vista laterale: la profondità
+    // letta sotto la linea di terra si riporta a destra della verticale
     for (const y of ys) {
-      gruppo.appendChild(linea(b.x0 - margine * 0.4, y, y, y, 'richiamo'));
-      gruppo.appendChild(linea(y, y, y, -b.z1 - margine * 0.4, 'richiamo'));
+      if (Math.abs(y) < 1e-6) continue;
+      gruppo.appendChild(linea(e.sinistra, y, 0, y, 'richiamo'));
+      gruppo.appendChild(arco(0, y, y, 0, y, 'arco-ribaltamento'));
+      gruppo.appendChild(linea(y, 0, y, -b.z1 - margine * 0.4, 'richiamo'));
     }
-    // la linea di ribaltamento passa per l'origine dei tre piani
     const fine = b.y1 + margine * 0.6;
-    gruppo.appendChild(linea(0, 0, fine, fine, 'ribaltamento'));
     const testo = el('text', {
-      x: fine + dimTesto * 0.3, y: fine + dimTesto * 0.35,
-      class: 'nota-disegno', 'font-size': dimTesto * 0.92
+      x: fine * 0.72, y: fine * 0.72 + dimTesto, class: 'nota-disegno', 'font-size': dimTesto * 0.92
     });
-    testo.textContent = 'ribaltamento 45°';
+    testo.textContent = 'ribaltamento con archi';
     gruppo.appendChild(testo);
   }
 
@@ -665,7 +674,7 @@ const Disegno = (function () {
       const dove = vistaInVeraForma(opzioni.sezione.tipo);
       if (dove) {
         const nota = el('text', {
-          x: b.x0, y: b.y1 + margine * 1.6, class: 'nota-disegno', 'font-size': dimTesto
+          x: -b.x1, y: b.y1 + margine * 1.6, class: 'nota-disegno', 'font-size': dimTesto
         });
         nota.textContent = 'La sezione è già in vera forma ' + dove + '.';
         g.appendChild(nota);
@@ -746,9 +755,9 @@ const Disegno = (function () {
   function titoloVista(vista, b, dimTesto, margine) {
     // il titolo sta sopra la propria vista, tranne la pianta che lo porta sotto
     const posizioni = {
-      prospetto: [b.x0, -b.z1 - margine * 0.45],
+      prospetto: [-b.x1, -b.z1 - margine * 0.45],
       laterale: [b.y0, -b.z1 - margine * 0.45],
-      pianta: [b.x0, b.y1 + margine * 0.8]
+      pianta: [-b.x1, b.y1 + margine * 0.8]
     };
     const p = posizioni[vista.nome];
     const t = el('text', { x: p[0], y: p[1], class: 'titolo-vista', 'font-size': dimTesto });
@@ -758,10 +767,10 @@ const Disegno = (function () {
 
   // --- Prospettiva ---
 
-  // Colloca il solido dietro il quadro: ruotato di "alfa" attorno all'asse
-  // verticale (0° = prospettiva centrale), appoggiato o sollevato secondo la
-  // quota, e allontanato dal quadro come nelle proiezioni ortogonali.
-  function collocaDietroIlQuadro(solido, posizione, alfaDeg) {
+  // Colloca il solido per la prospettiva: ruotato di "alfa" attorno all'asse
+  // verticale (0° = prospettiva centrale) e messo oltre il quadro, secondo la
+  // disposizione del metodo: punto di vista, quadro, oggetto.
+  function collocaPerProspettiva(solido, posizione, alfaDeg) {
     const p = posizione || {};
     const b0 = limiti(solido);
     const dimensione = Math.max(b0.x1 - b0.x0, b0.y1 - b0.y0, b0.z1 - b0.z0);
@@ -769,26 +778,27 @@ const Disegno = (function () {
     const quota = p.quota === undefined ? 0 : p.quota;
 
     const chiave = allontanamento + '/' + quota + '/' + alfaDeg;
-    if (solido._dietroQuadro && solido._dietroQuadro.chiave === chiave) return solido._dietroQuadro.solido;
-
+    if (solido._perProspettiva && solido._perProspettiva.chiave === chiave) {
+      return solido._perProspettiva.solido;
+    }
     const m = Geo.rotZ(Geo.deg2rad(alfaDeg));
     const ruotati = solido.vertici.map(v => Geo.matVec(m, v));
-    const minY = Math.min(...ruotati.map(v => v[1]));
+    const maxY = Math.max(...ruotati.map(v => v[1]));
     const minZ = Math.min(...ruotati.map(v => v[2]));
     const cx = (Math.min(...ruotati.map(v => v[0])) + Math.max(...ruotati.map(v => v[0]))) / 2;
-    // oltre il quadro, cioè dalla parte opposta all'osservatore
+    // oltre il quadro: y negativo, cioè dalla parte opposta all'osservatore
     const trasforma = v => {
       const r = Geo.matVec(m, v);
-      return [r[0] - cx, -(r[1] - minY + allontanamento), r[2] - minZ + quota];
+      return [r[0] - cx, r[1] - maxY - allontanamento, r[2] - minZ + quota];
     };
     const collocato = {
       id: solido.id, nome: solido.nome, categoria: solido.categoria,
-      vertici: ruotati.map(v => [v[0] - cx, -(v[1] - minY + allontanamento), v[2] - minZ + quota]),
+      vertici: ruotati.map(v => [v[0] - cx, v[1] - maxY - allontanamento, v[2] - minZ + quota]),
       facce: solido.facce,
       anelli: trasformaAnelli(solido.anelli, trasforma),
       trasforma: trasforma
     };
-    solido._dietroQuadro = { chiave: chiave, solido: collocato };
+    solido._perProspettiva = { chiave: chiave, solido: collocato };
     return collocato;
   }
 
@@ -805,7 +815,7 @@ const Disegno = (function () {
   function disegnaProspettiva(svg, solidoOriginale, vista, opzioni) {
     svuota(svg);
     const sezione = applicaSezione(solidoOriginale, opzioni);
-    const solido = collocaDietroIlQuadro(sezione.solido, opzioni.posizione, opzioni.alfa);
+    const solido = collocaPerProspettiva(sezione.solido, opzioni.posizione, opzioni.alfa);
     const g = el('g', {});
     const b = limiti(solido);
     const dimensione = Math.max(b.x1 - b.x0, b.y1 - b.y0, b.z1 - b.z0);
@@ -872,16 +882,6 @@ const Disegno = (function () {
         .forEach(f => puntoTrascinabile(g, f.p, f.etichetta, 'punto-fuga', dimTesto, f.nome));
     }
 
-    // la pianta della scena, disegnata sopra il quadro
-    if (opzioni.conPianta) {
-      const scostamento = riquadro.y0 - dimTesto * 2.5 - vista.distanza;
-      const ingombro = disegnaPiantaDellaScena(g, solido, vista, fughe, scostamento, dimTesto);
-      riquadro.x0 = Math.min(riquadro.x0, ingombro.x0);
-      riquadro.x1 = Math.max(riquadro.x1, ingombro.x1);
-      riquadro.y0 = Math.min(riquadro.y0, ingombro.y0);
-      riquadro.y1 = Math.max(riquadro.y1, ingombro.y1);
-    }
-
     svg.appendChild(g);
 
     // con l'inquadratura imposta il margine non può dipendere dal solido,
@@ -896,64 +896,6 @@ const Disegno = (function () {
     ].join(' '));
     svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
     return riquadro;
-  }
-
-  // Pianta della scena prospettica, disegnata sopra il quadro. L'ascissa è la
-  // stessa dell'immagine prospettica (un punto del quadro si proietta in sé),
-  // quindi i punti di fuga cadono esattamente sotto il punto in cui le
-  // parallele condotte dal punto di vista incontrano il quadro.
-  function disegnaPiantaDellaScena(gruppo, solido, vista, fughe, scostamento, dimTesto) {
-    const g = el('g', { class: 'pianta-scena' });
-    const pianta = Geo.vistaOrtogonale('pianta');
-    // nella pianta della scena la profondità cresce verso l'alto: l'oggetto,
-    // che sta oltre il quadro, va sopra la retta del quadro e l'occhio sotto
-    const inScena = p => {
-      const q = pianta.project(p);      // q = [x, y]
-      return [q[0], scostamento + q[1]];
-    };
-
-    const b = limiti(solido);
-    const larghezza = Math.max(b.x1 - b.x0, 1);
-    const sinistra = Math.min(b.x0, vista.x) - larghezza * 0.6;
-    const destra = Math.max(b.x1, vista.x, ...fughe.map(f => f.p[0])) + larghezza * 0.3;
-
-    // il quadro, visto di taglio
-    g.appendChild(linea(sinistra, scostamento, destra, scostamento, 'quadro'));
-    etichetta(g, 'quadro', sinistra, scostamento - dimTesto * 0.4, 'etichetta-schema', dimTesto * 0.9);
-
-    // la pianta del solido
-    const topo = Geo.costruisciTopologia(solido);
-    for (const s of topo.spigoli) {
-      if (!s.netto) continue;
-      const a = inScena(solido.vertici[s.a]);
-      const c = inScena(solido.vertici[s.b]);
-      if (Math.hypot(c[0] - a[0], c[1] - a[1]) < 1e-6) continue;
-      g.appendChild(linea(a[0], a[1], c[0], c[1], 'pianta-scena-solido'));
-    }
-
-    // il punto di vista, davanti al quadro, e la sua distanza
-    const pv = [vista.x, scostamento + vista.distanza];
-    g.appendChild(el('circle', { cx: pv[0], cy: pv[1], r: dimTesto * 0.3, class: 'punto-vista' }));
-    etichetta(g, 'P.V.', pv[0] + dimTesto * 0.4, pv[1] + dimTesto * 0.9, 'etichetta-punto', dimTesto * 0.9);
-    g.appendChild(linea(pv[0], pv[1], pv[0], scostamento, 'richiamo'));
-
-    // le parallele alle direzioni dell'oggetto: dove toccano il quadro nascono
-    // i punti di fuga, che nell'immagine cadono sulla stessa verticale
-    fughe.forEach(f => {
-      const u = f.direzione;
-      if (Math.abs(u[1]) < 1e-9) return;
-      const passo = -vista.distanza / u[1];
-      const incontro = [pv[0] + u[0] * passo, scostamento];
-      g.appendChild(linea(pv[0], pv[1], incontro[0], incontro[1], 'linea-fuga'));
-      g.appendChild(linea(incontro[0], incontro[1], f.p[0], f.p[1], 'allineamento-fuga'));
-    });
-
-    gruppo.appendChild(g);
-    return {
-      x0: sinistra, x1: destra,
-      y0: Math.min(scostamento - (b.y1 - b.y0) - dimTesto, scostamento) - dimTesto,
-      y1: pv[1] + dimTesto * 1.6
-    };
   }
 
   function puntiDiFuga(vista, alfaDeg) {
@@ -1012,16 +954,10 @@ const Disegno = (function () {
   function disegnaAssonometria(svg, solidoOriginale, vista, opzioni) {
     svuota(svg);
     const sezione = applicaSezione(solidoOriginale, opzioni);
-    // con il triedro il solido va collocato nello spazio come nelle proiezioni
-    // ortogonali: solo così, spostandolo, il movimento si vede anche qui
-    let versoX = -1;
-    if (opzioni.triedro) {
-      const b0 = limiti(sezione.solido);
-      versoX = versoDelTriedro(vista,
-        (b0.x1 - b0.x0) * 1.6, (b0.y1 - b0.y0) * 1.6, (b0.z1 - b0.z0) * 1.25);
-    }
+    // Con il triedro il solido è collocato esattamente come nelle proiezioni
+    // ortogonali: primo triedro, cioè x, y, z tutte positive.
     const solido = opzioni.triedro
-      ? collocaNelTriedro(sezione.solido, opzioni.posizione, versoX)
+      ? collocaNelTriedro(sezione.solido, opzioni.posizione)
       : sezione.solido;
     const g = el('g', {});
     const b = limiti(solido);
@@ -1029,7 +965,7 @@ const Disegno = (function () {
     const dimTesto = dimensione * 0.075;
 
     if (opzioni.griglia) disegnaGrigliaBase(g, solido, vista, dimensione);
-    if (opzioni.triedro) disegnaTriedro(g, solido, vista, dimTesto, versoX);
+    if (opzioni.triedro) disegnaTriedro(g, solido, vista, dimTesto);
     if (opzioni.assi) {
       disegnaAssiRiferimento(g, vista, dimensione, dimTesto,
         { conDati: opzioni.assiConDati, inEvidenza: opzioni.assiInEvidenza });
@@ -1086,19 +1022,9 @@ const Disegno = (function () {
   // Triedro di riferimento in assonometria: i tre piani di proiezione come
   // angolo entro cui sta il solido, con gli assi lungo i loro spigoli. Serve a
   // leggere la posizione del solido nello spazio, non solo la sua forma.
-  // Da che parte collocare il solido perché, ribaltando i piani sul foglio, il
-  // P.L. cada a destra del P.V., come nelle proiezioni ortogonali. I tipi di
-  // assonometria orientano diversamente i due assi orizzontali, quindi il lato
-  // giusto non è sempre lo stesso.
-  function versoDelTriedro(vista, estXassoluto, estY, estZ) {
-    const centroPL = vista.project([0, estY / 2, estZ / 2]);
-    const conVerso = segno => vista.project([segno * estXassoluto / 2, 0, estZ / 2]);
-    return centroPL[0] > conVerso(1)[0] ? 1 : -1;
-  }
-
-  function disegnaTriedro(gruppo, solido, vista, dimTesto, versoX) {
+  function disegnaTriedro(gruppo, solido, vista, dimTesto) {
     const b = limiti(solido);
-    const estX = versoX * Math.max(Math.abs(b.x0), Math.abs(b.x1)) * 1.25;
+    const estX = Math.max(b.x1, 1) * 1.25;
     const estY = Math.max(b.y1, 1) * 1.25;
     const estZ = Math.max(b.z1, 1) * 1.25;
 
@@ -1243,7 +1169,7 @@ const Disegno = (function () {
     disegnaAssonometria,
     disegnaProspettiva,
     disegnaFiguraPiana,
-    collocaDietroIlQuadro,
+    collocaPerProspettiva,
     puntiDiFuga,
     segmentiProiettati,
     limiti

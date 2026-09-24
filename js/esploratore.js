@@ -27,8 +27,7 @@ const Esploratore = (function () {
       piani: false,
       resa: 'wireframe',
       lineeDiFuga: true,
-      inquadraFughe: true,
-      conPianta: true
+      inquadraFughe: true
     }
   };
 
@@ -161,10 +160,6 @@ const Esploratore = (function () {
       aggiorna();
     });
 
-    document.getElementById('opz-pianta-scena').addEventListener('change', e => {
-      stato.opzioni.conPianta = e.target.checked;
-      aggiorna();
-    });
 
     el.pulsantiAsso.forEach(b => b.addEventListener('click', () => {
       stato.assonometria.tipo = b.dataset.asso;
@@ -312,7 +307,8 @@ const Esploratore = (function () {
       if (elementoTrascinato === 'orizzonte') {
         prospettiva.altezza = Math.max(0, Math.min(160, Math.round(-p.y)));
       } else if (elementoTrascinato === 'punto-principale') {
-        prospettiva.x = Math.max(-300, Math.min(300, Math.round(p.x)));
+        prospettiva.x = Math.max(-400, Math.min(400, Math.round(p.x)));
+        prospettiva.xImpostato = true;
       } else {
         // spostando un punto di fuga cambia l'angolo di rotazione del solido;
         // l'altro punto di fuga si sposta di conseguenza

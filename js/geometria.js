@@ -225,13 +225,25 @@ const Geo = (function () {
   // Ogni vista espone project(v3) -> [x, y] in coordinate di disegno (y verso
   // il basso, come nell'SVG) e viewDir: direzione dall'osservatore alla scena.
 
+  // Terna del triedro di Monge: il P.O. è il piano xy, il P.V. il piano xz, il
+  // P.L. il piano yz. Con z in alto e y verso l'osservatore, in un sistema
+  // destrorso l'asse x punta a sinistra: il primo triedro è quindi l'ottante
+  // delle coordinate tutte positive, ed è lì che sta il solido.
+  //
+  // Sul foglio l'ascissa è -x, perché x cresce verso sinistra. La profondità y
+  // scende sotto la linea di terra nella pianta e, nella vista laterale, si
+  // allontana verso destra dalla verticale, dove il P.L. è ribaltato.
   function vistaOrtogonale(nome) {
-    if (nome === 'pianta') return { nome: 'pianta', etichetta: 'Pianta', project: v => [v[0], v[1]], viewDir: [0, 0, -1] };
-    // Primo diedro: il solido sta fra l'osservatore e il piano su cui si
-    // proietta. Davanti al P.V. significa y positivo, quindi l'osservatore
-    // guarda da y verso il piano, non dal lato opposto.
-    if (nome === 'prospetto') return { nome: 'prospetto', etichetta: 'Prospetto', project: v => [v[0], -v[2]], viewDir: [0, -1, 0] };
-    if (nome === 'laterale') return { nome: 'laterale', etichetta: 'Vista laterale', project: v => [v[1], -v[2]], viewDir: [1, 0, 0] };
+    if (nome === 'pianta') {
+      return { nome: 'pianta', etichetta: 'Pianta', project: v => [-v[0], v[1]], viewDir: [0, 0, -1] };
+    }
+    if (nome === 'prospetto') {
+      return { nome: 'prospetto', etichetta: 'Prospetto', project: v => [-v[0], -v[2]], viewDir: [0, -1, 0] };
+    }
+    // vista da sinistra: l'osservatore sta dalla parte delle x positive
+    if (nome === 'laterale') {
+      return { nome: 'laterale', etichetta: 'Vista laterale', project: v => [v[1], -v[2]], viewDir: [-1, 0, 0] };
+    }
     throw new Error('vista ortogonale sconosciuta: ' + nome);
   }
 
@@ -252,6 +264,7 @@ const Geo = (function () {
         v[0] * config.kx * dirX[0] + v[1] * config.ky * dirY[0] + v[2] * config.kz * dirZ[0],
         v[0] * config.kx * dirX[1] + v[1] * config.ky * dirY[1] + v[2] * config.kz * dirZ[1]
       ],
+      config: config,
       assi: {
         x: { angolo: config.angoloX, k: config.kx },
         y: { angolo: config.angoloY, k: config.ky },
@@ -289,8 +302,9 @@ const Geo = (function () {
     },
     cavaliera: {
       nomeTipo: 'cavaliera', etichetta: 'Cavaliera',
-      angoloX: 0, angoloY: 45, angoloZ: 90, kx: 1, ky: 0.5, kz: 1,
-      nota: 'Proiezione obliqua: la faccia frontale resta in vera forma, la profondità è ridotta a metà su un asse a 45°.'
+      angoloX: 180, angoloY: 315, angoloZ: 90, kx: 1, ky: 0.5, kz: 1,
+      nota: 'Proiezione obliqua: la faccia frontale (piano xz) resta in vera forma, la profondità è ridotta a metà su un asse a 45°. ' +
+        'L\'asse y scende verso l\'osservatore, perché il solido sta davanti al P.V.'
     },
     monometrica: {
       nomeTipo: 'monometrica', etichetta: 'Monometrica',
@@ -303,10 +317,14 @@ const Geo = (function () {
   // Assonometria libera: rotazione 3D vera, comandata dal trascinamento.
   // yaw: rotazione attorno all'asse verticale; pitch positivo = si guarda dall'alto.
   function vistaAssonometricaLibera(yawRad, pitchRad) {
-    const m = matMul(rotZ(yawRad), rotX(-pitchRad));
-    const right = matVec(m, [1, 0, 0]);
-    const up = matVec(m, [0, 0, 1]);
-    const forward = matVec(m, [0, 1, 0]);
+    // L'osservatore gira attorno al solido restando dalla parte da cui si
+    // guarda nelle proiezioni ortogonali: con yaw = 0 sta davanti al P.V.
+    // Da lì l'asse x va verso sinistra, come nel prospetto.
+    const cy = Math.cos(yawRad), sy = Math.sin(yawRad);
+    const cp = Math.cos(pitchRad), sp = Math.sin(pitchRad);
+    const right = [-cy, sy, 0];
+    const up = [-sp * sy, -sp * cy, cp];
+    const forward = [-cp * sy, -cp * cy, -sp];
     function asse(v3) {
       const p = [dot(v3, right), -dot(v3, up)];
       let angolo = rad2deg(Math.atan2(-p[1], p[0]));
@@ -332,10 +350,12 @@ const Geo = (function () {
   // L'osservatore sta dalla stessa parte da cui guarda nelle proiezioni
   // ortogonali (y positivo) e l'oggetto è oltre il quadro, cioè a y negativo.
   function vistaProspettica(cfg) {
-    const O = [cfg.x, cfg.distanza, cfg.altezza];
+    // cfg.x è la posizione del punto principale sul foglio; nello spazio
+    // l'occhio sta alla x opposta, perché sul foglio l'asse x va verso sinistra.
+    const O = [-cfg.x, cfg.distanza, cfg.altezza];
     function project(P) {
       const t = cfg.distanza / (cfg.distanza - P[1]);
-      return [O[0] + t * (P[0] - O[0]), -(O[2] + t * (P[2] - O[2]))];
+      return [cfg.x * (1 - t) - t * P[0], -(O[2] + t * (P[2] - O[2]))];
     }
     return {
       nome: 'prospettiva',
@@ -350,7 +370,7 @@ const Geo = (function () {
       puntoDiFuga: function (u) {
         if (Math.abs(u[1]) < 1e-9) return null; // direzione parallela al quadro
         const passo = -cfg.distanza / u[1];
-        return [O[0] + passo * u[0], -(O[2] + passo * u[2])];
+        return [cfg.x - passo * u[0], -(O[2] + passo * u[2])];
       }
     };
   }
