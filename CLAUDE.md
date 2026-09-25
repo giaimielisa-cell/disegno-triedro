@@ -76,6 +76,11 @@ si cambia lì, non nelle singole regole.
 - Accento `#8C5A63` per i comandi. Un colore per sezione (Esploratore
   `#3E6068`, Palestra `#A24E36`) e uno per metodo (proiezioni `#5C7A8A`,
   assonometria `#7C8B6E`, prospettiva `#A98A3E`, sezioni `#B8794F`).
+- Il pulsante degli aiuti alla lettura ha un colore suo, il blu indaco
+  `#4A5C86` (`--leggibilita`): non è un comando del disegno e non deve
+  confondersi con l'accento.
+- Le didascalie sopra i disegni sono brevi: nome del metodo, nome del solido
+  ed eventuale nota sulla sezione. Niente spiegazioni dentro la didascalia.
 - I colori del **disegno tecnico** restano quelli della tavola: l'accento non
   entra nel disegno.
 - Le card degli esercizi hanno il bordo a tratto di matita, con almeno 14px di
