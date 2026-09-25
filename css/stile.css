@@ -10,6 +10,7 @@
   --inchiostro-tenue: #6b6b66;
   --bordo: #e4ddcd;
   --accento: #8C5A63;
+  --leggibilita: #4A5C86;   /* blu indaco del pulsante degli aiuti alla lettura */
   --matita: #7a746a;
 
   /* le sezioni dell'applicazione */
@@ -124,9 +125,9 @@ body { display: flex; flex-direction: column; font-size: 1rem; }
 
 .pulsante-leggibilita {
   display: inline-flex; align-items: center; gap: 7px;
-  color: var(--accento) !important; border-color: var(--accento) !important;
+  color: var(--leggibilita) !important; border-color: var(--leggibilita) !important;
 }
-.pulsante-leggibilita[aria-expanded="true"] { background: var(--accento); color: #fff !important; }
+.pulsante-leggibilita[aria-expanded="true"] { background: var(--leggibilita); color: #fff !important; }
 .segno-leggibilita { font-weight: 700; font-size: 1.05rem; line-height: 1; }
 
 /* --- Comandi principali --- */
